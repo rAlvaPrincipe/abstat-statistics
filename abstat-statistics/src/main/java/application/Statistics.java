@@ -12,11 +12,7 @@ public class Statistics {
 	private static String[] datasets;
 	private String PLD;
 
-<<<<<<< HEAD
 	public Statistics(String master, String datasets, String output_dir, String PLD) {
-=======
-	public Statistics(String master, String output_dir) {
->>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
 		this.session = SparkSession.builder().appName("Java Spark SQL basic example").master(master).getOrCreate();
 		this.session.sparkContext().setLogLevel("ERROR");
 		this.datasets = datasets.split(";");
@@ -40,11 +36,9 @@ public class Statistics {
 		s.objectCount(); 
 		s.predicateTriples(); 
 		s.predicateSubjects(); 
-<<<<<<< HEAD
 		s.predicateObjects(); 
-=======
 		s.predicateObjects();  
->>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
+
 	}
 	
 	
@@ -68,10 +62,6 @@ public class Statistics {
 														+ "WHERE object NOT LIKE '%" +PLD+ "%') AS WithoutPLD "
 					+ "FROM DistinctObject "
 					+ "WHERE object LIKE '%" +PLD+ "%' ").write().option("sep", ";").csv(output_dir + "/CountConceptsPLD");
-<<<<<<< HEAD
-=======
-		//dbpedia.org/ontology   
->>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
 	}
 	
 
@@ -87,22 +77,14 @@ public class Statistics {
 					+ "WHERE predicate LIKE '%" +PLD+ "%' ").write().option("sep", ";").csv(output_dir + "/CountPropertiesPLD");
 	}
 	
-<<<<<<< HEAD
-
-=======
-	//okay but parser does not support blank node
->>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
+	
 	public void bNodesObject() {	
 		session.sql("SELECT COUNT (object) AS bNodesObject "
 					+ "FROM dataset "
 					+ "WHERE object LIKE '_:%' ").write().option("sep", ";").csv(output_dir + "/BNodesObject");
 	}
 	
-<<<<<<< HEAD
-
-=======
-	//okay but parser does not support blank node	
->>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
+	
 	public void bNodesSubject() {
 		session.sql("SELECT COUNT (subject) AS bNodesSubject "
 					+ "FROM dataset "
@@ -187,5 +169,4 @@ public class Statistics {
 					+ "GROUP BY predicate "
 					+ "ORDER BY nObjects DESC ").write().option("sep", ";").csv(output_dir + "/PredicateObjects"); 
 	}
-
 }
