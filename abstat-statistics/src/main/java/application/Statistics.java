@@ -5,25 +5,28 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
-
 public class Statistics {
 	
 	private SparkSession session;
 	private String output_dir;
 	private static String[] datasets;
-	private static String PLD;
+	private String PLD;
 
+<<<<<<< HEAD
+	public Statistics(String master, String datasets, String output_dir, String PLD) {
+=======
 	public Statistics(String master, String output_dir) {
+>>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
 		this.session = SparkSession.builder().appName("Java Spark SQL basic example").master(master).getOrCreate();
 		this.session.sparkContext().setLogLevel("ERROR");
+		this.datasets = datasets.split(";");
+		this.PLD = PLD;
 		this.output_dir = output_dir;
 	}
 	
 	
 	public static void main(String[] args) throws Exception {
-		Statistics s = new Statistics(args[0], args[2]);
-		datasets = args[1].split(";");
-		PLD = args[3];
+		Statistics s = new Statistics(args[0], args[1], args[2], args[3]);
 		s.preProcessing(datasets);
 		s.countConceptsPLD();
 		s.countPropertiesPLD();
@@ -37,7 +40,11 @@ public class Statistics {
 		s.objectCount(); 
 		s.predicateTriples(); 
 		s.predicateSubjects(); 
+<<<<<<< HEAD
+		s.predicateObjects(); 
+=======
 		s.predicateObjects();  
+>>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
 	}
 	
 	
@@ -49,7 +56,7 @@ public class Statistics {
 		data.show(40);
 	}
 	
-	//contains invece di =
+
 	public void countConceptsPLD(){		
 		session.sql("SELECT object "
 				+ "FROM dataset "
@@ -61,10 +68,13 @@ public class Statistics {
 														+ "WHERE object NOT LIKE '%" +PLD+ "%') AS WithoutPLD "
 					+ "FROM DistinctObject "
 					+ "WHERE object LIKE '%" +PLD+ "%' ").write().option("sep", ";").csv(output_dir + "/CountConceptsPLD");
+<<<<<<< HEAD
+=======
 		//dbpedia.org/ontology   
+>>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
 	}
 	
-	//contains invece di =
+
 	public void countPropertiesPLD(){		
 		session.sql("SELECT predicate "
 				+ "FROM dataset "
@@ -77,21 +87,29 @@ public class Statistics {
 					+ "WHERE predicate LIKE '%" +PLD+ "%' ").write().option("sep", ";").csv(output_dir + "/CountPropertiesPLD");
 	}
 	
+<<<<<<< HEAD
+
+=======
 	//okay but parser does not support blank node
+>>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
 	public void bNodesObject() {	
 		session.sql("SELECT COUNT (object) AS bNodesObject "
 					+ "FROM dataset "
 					+ "WHERE object LIKE '_:%' ").write().option("sep", ";").csv(output_dir + "/BNodesObject");
 	}
 	
+<<<<<<< HEAD
+
+=======
 	//okay but parser does not support blank node	
+>>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
 	public void bNodesSubject() {
 		session.sql("SELECT COUNT (subject) AS bNodesSubject "
 					+ "FROM dataset "
 					+ "WHERE subject LIKE '_:%' ").write().option("sep", ";").csv(output_dir + "/BNodesSubject");
 	}
 	
-	//non contare NULL
+
 	public void datatype() {
 		session.sql("SELECT datatype, COUNT(datatype) AS nDatatype  "
 					+ "FROM dataset "
@@ -100,7 +118,7 @@ public class Statistics {
 					+ "ORDER BY nDatatype DESC").write().option("sep", ";").csv(output_dir + "/Datatype");
 	}
 
-	//split language from name, only language
+
 	public void countLanguage() {
 		session.sql("SELECT language, COUNT(language) as nLanguage "
 					+ "FROM (SELECT substring(object, -3, 3) AS language "
@@ -127,7 +145,7 @@ public class Statistics {
 					+ "WHERE predicate = 'http://www.w3.org/2002/07/owl#sameAs' ").write().option("sep", ";").csv(output_dir + "/OwlSameas");
 	}
 	
-	//da aggiungere filtraggio, è diventata una statistica da 1.5	
+
 	public void subjectCount() {
 		session.sql("SELECT MIN(number), AVG(number), MAX(Number) "
 					+ "FROM (SELECT COUNT (object) AS number "
@@ -136,7 +154,7 @@ public class Statistics {
 							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "/SubjectCount");
 	}
 	
-	//da aggiungere filtraggio, è diventata una statistica da 1.5
+
 	public void objectCount() {
 		session.sql("SELECT MIN(number), AVG(number), MAX(Number) "
 					+ "FROM (SELECT COUNT (subject) AS number "
@@ -145,7 +163,7 @@ public class Statistics {
 							+ "GROUP BY object) ").write().option("sep", ";").csv(output_dir + "/ObjectCount");
 	}
 	
-	//correggere togliendo l'input da tastiera	
+
 	public void predicateTriples() {
 		session.sql("SELECT predicate, COUNT (predicate) AS nTriples "
 					+ "FROM dataset " 
@@ -153,7 +171,7 @@ public class Statistics {
 					+ "ORDER BY nTriples DESC").write().option("sep", ";").csv(output_dir + "/PredicateTriples");
 	}
 	
-	//correggere togliendo l'input da tastiera	
+
 	public void predicateSubjects() {
 		session.sql("SELECT predicate, COUNT (DISTINCT subject) AS nSubjects "
 					+ "FROM dataset " 
@@ -161,7 +179,7 @@ public class Statistics {
 					+ "ORDER BY nSubjects DESC ").write().option("sep", ";").csv(output_dir + "/PredicateSubjects");
 	}
 
-	//correggere togliendo l'input da tastiera e aggiungere filtraggio
+	
 	public void predicateObjects() {
 		session.sql("SELECT predicate, COUNT (DISTINCT object) AS nObjects "
 					+ "FROM dataset "
@@ -169,4 +187,5 @@ public class Statistics {
 					+ "GROUP BY predicate "
 					+ "ORDER BY nObjects DESC ").write().option("sep", ";").csv(output_dir + "/PredicateObjects"); 
 	}
+
 }
