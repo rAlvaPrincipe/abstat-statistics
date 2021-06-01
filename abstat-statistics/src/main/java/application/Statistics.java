@@ -24,7 +24,7 @@ public class Statistics {
 	public static void main(String[] args) throws Exception {
 		Statistics s = new Statistics(args[0], args[1], args[2], args[3]);
 		s.preProcessing(datasets);
-		s.countConceptsPLD();
+	/*	s.countConceptsPLD();
 		s.countPropertiesPLD();
 		s.bNodesObject();
 		s.bNodesSubject(); 
@@ -37,8 +37,14 @@ public class Statistics {
 		s.predicateTriples(); 
 		s.predicateSubjects(); 
 		s.predicateObjects(); 
-		s.predicateObjects();  
-
+		s.predicateObjects();  */
+		s.literalsWithType();
+		s.literalsWithoutType();
+		s.lengthLiterals(); 
+	/*	s.sameAsLink();  
+		s.subjectPredicates(); 
+		s.subjectObject(); */
+	//	s.typedSubject(); 
 	}
 	
 	
@@ -47,7 +53,7 @@ public class Statistics {
 		JavaRDD<Triple> rdd = new Splitter().calculate(input);
 		Dataset<Row> data = session.createDataFrame(rdd, Triple.class);
 		data.createOrReplaceTempView("dataset");
-		data.show(40);
+		data.show(30, false);
 	}
 	
 
@@ -95,7 +101,7 @@ public class Statistics {
 	public void datatype() {
 		session.sql("SELECT datatype, COUNT(datatype) AS nDatatype  "
 					+ "FROM dataset "
-					+ "WHERE datatype != 'null' "
+					+ "WHERE datatype is not null "
 					+ "GROUP BY datatype "
 					+ "ORDER BY nDatatype DESC").write().option("sep", ";").csv(output_dir + "/Datatype");
 	}
@@ -129,20 +135,20 @@ public class Statistics {
 	
 
 	public void subjectCount() {
-		session.sql("SELECT MIN(number), AVG(number), MAX(Number) "
+		session.sql("SELECT MIN(number), AVG(number), MAX(number) "
 					+ "FROM (SELECT COUNT (object) AS number "
 							+ "FROM dataset "
 							+ "WHERE predicate != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "
-							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "/SubjectCount");
+							+ "GROUP BY subject) ").show();		//.write().option("sep", ";").csv(output_dir + "/SubjectCount");
 	}
 	
 
 	public void objectCount() {
-		session.sql("SELECT MIN(number), AVG(number), MAX(Number) "
+		session.sql("SELECT MIN(number), AVG(number), MAX(number) "
 					+ "FROM (SELECT COUNT (subject) AS number "
 							+ "FROM dataset "
 							+ "WHERE predicate != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "
-							+ "GROUP BY object) ").write().option("sep", ";").csv(output_dir + "/ObjectCount");
+							+ "GROUP BY object) ").show();				//.write().option("sep", ";").csv(output_dir + "/ObjectCount");
 	}
 	
 
@@ -168,5 +174,81 @@ public class Statistics {
 					+ "WHERE predicate != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "     
 					+ "GROUP BY predicate "
 					+ "ORDER BY nObjects DESC ").write().option("sep", ";").csv(output_dir + "/PredicateObjects"); 
+	}
+	
+	//guardare colonna datatype, nulla da matchare
+	public void literalsWithType() {	
+		session.sql("SELECT COUNT(type) AS LiteralsWithType "
+					+ "FROM dataset "
+					+ "WHERE type = 'dt_relational' "
+					+ "AND datatype is not null ").show();
+	}
+	
+	
+	public void literalsWithoutType() {	
+		session.sql("SELECT COUNT(type) AS LiteralsWithoutType "
+					+ "FROM dataset "
+					+ "WHERE datatype is null "
+					+ "AND type = 'dt_relational' ").show();
+	}
+	
+	
+	public void lengthLiterals() {
+		session.sql("SELECT AVG(LENGTH(object)) AS AVGLengthLiterals "
+					+ "FROM dataset "
+					+ "WHERE type = 'dt_relational' "
+					+ "AND datatype is null ").show();
+	}
+	
+	//provare con group by senza query innestata
+	public void sameAsLink() {
+		session.sql("SELECT MIN(number), AVG(number), MAX(number) "
+					+ "FROM (SELECT COUNT(subject) AS number "
+							+ "FROM dataset "
+							+ "WHERE predicate = 'http://www.w3.org/2002/07/owl#sameAs') ").show();
+	}
+	
+	//devo considerare anche rdf:Type?
+	public void subjectPredicates() {
+		session.sql("SELECT MIN(nPredicate), AVG(nPredicate), MAX(nPredicate) "
+					+ "FROM (SELECT COUNT (DISTINCT predicate) AS nPredicate "
+							+ "FROM dataset " 
+							+ "GROUP BY subject) ").show(20, false);
+	}
+	
+	//vedere se si può fare con group by
+	public void subjectObject() {
+		
+		//SENZA GROUP BY
+		session.sql("SELECT MIN(nPredicate), AVG(nPredicate), MAX(nPredicate) "
+					+ "FROM (SELECT COUNT (DISTINCT predicate) AS nPredicate "
+							+ "FROM dataset " 
+							+ "GROUP BY subject, object) ").show(20, false);
+		
+		session.sql("SELECT subject, object, COUNT (DISTINCT predicate) AS nPredicate "
+					+ "FROM dataset " 
+					+ "GROUP BY subject, object "
+					+ "ORDER BY nPredicate DESC").show(100, false);
+		
+		//CON GROUP BY
+		session.sql("SELECT MIN(nPredicate), AVG(nPredicate), MAX(nPredicate) "
+					+ "FROM (SELECT COUNT (predicate) AS nPredicate "
+						+ "FROM dataset " 
+						+ "GROUP BY subject, object, predicate) ").show(20, false);
+		
+		session.sql("SELECT subject, object, COUNT (predicate) AS nPredicate "
+					+ "FROM dataset "
+					+ "GROUP BY subject, object, predicate "
+					+ "ORDER BY nPredicate DESC ").show(100, false);
+
+	}
+	
+	
+	public void typedSubject() {
+		session.sql("SELECT MIN(nSubject), AVG(nSubject), MAX(nSubject) "
+				+ "FROM (SELECT COUNT(subject) as nSubject "
+					+ "FROM dataset "
+					+ "WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "
+					+ "GROUP BY subject) ").show(20, false);
 	}
 }
