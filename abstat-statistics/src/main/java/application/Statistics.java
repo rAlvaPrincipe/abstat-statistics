@@ -12,11 +12,7 @@ public class Statistics {
 	private static String[] datasets;
 	private String PLD;
 
-<<<<<<< HEAD
 	public Statistics(String master, String datasets, String output_dir, String PLD) {
-=======
-	public Statistics(String master, String output_dir) {
->>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
 		this.session = SparkSession.builder().appName("Java Spark SQL basic example").master(master).getOrCreate();
 		this.session.sparkContext().setLogLevel("ERROR");
 		this.datasets = datasets.split(";");
@@ -27,24 +23,36 @@ public class Statistics {
 	
 	public static void main(String[] args) throws Exception {
 		Statistics s = new Statistics(args[0], args[1], args[2], args[3]);
+		Dataset<Row> peopleDF = s.session.read().format("json").load("/Users/filippocolombo/abstat-statistics/Datasets/prefixes_updated.json");
+		peopleDF.createOrReplaceTempView("list");
+		
 		s.preProcessing(datasets);
-		s.countConceptsPLD();
-		s.countPropertiesPLD();
-		s.bNodesObject();
-		s.bNodesSubject(); 
-		s.datatype();  
-		s.countLanguage(); 
-		s.rdfsLabel(); 
-		s.owlSameas(); 
-		s.subjectCount(); 
-		s.objectCount(); 
-		s.predicateTriples(); 
-		s.predicateSubjects(); 
-<<<<<<< HEAD
-		s.predicateObjects(); 
-=======
-		s.predicateObjects();  
->>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
+	/*	s.countConceptsPLD();			
+		s.countPropertiesPLD();			
+		s.bNodesObject();				
+		s.bNodesSubject(); 				
+		s.datatype();  					
+		s.countLanguage(); 				
+		s.outgoingLinks();				
+		s.incomingLinks();				
+		s.rdfsLabel();					
+		s.literalsWithType();			
+		s.literalsWithoutType();	
+		s.vocabularies();	
+		s.sameAsLink();					
+		s.owlSameas();					
+		s.lengthStringAndUntypedLiterals();				 
+		s.typedSubjected();				
+		s.untypedSubjected(); 			
+		s.triplesEntity();			
+		s.subjectPredicates(); 			
+		s.subjectObject();				
+		s.subjectCount(); 				
+		s.objectCount();				
+		s.predicateTriples();			
+		s.predicateSubjects(); 			
+		s.predicateObjects(); 			
+		s.typedSubject();	*/			
 	}
 	
 	
@@ -53,10 +61,10 @@ public class Statistics {
 		JavaRDD<Triple> rdd = new Splitter().calculate(input);
 		Dataset<Row> data = session.createDataFrame(rdd, Triple.class);
 		data.createOrReplaceTempView("dataset");
-		data.show(40);
+		data.show(30, false);
 	}
 	
-
+	//stat 4
 	public void countConceptsPLD(){		
 		session.sql("SELECT object "
 				+ "FROM dataset "
@@ -68,13 +76,9 @@ public class Statistics {
 														+ "WHERE object NOT LIKE '%" +PLD+ "%') AS WithoutPLD "
 					+ "FROM DistinctObject "
 					+ "WHERE object LIKE '%" +PLD+ "%' ").write().option("sep", ";").csv(output_dir + "/CountConceptsPLD");
-<<<<<<< HEAD
-=======
-		//dbpedia.org/ontology   
->>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
 	}
 	
-
+	//stat 7
 	public void countPropertiesPLD(){		
 		session.sql("SELECT predicate "
 				+ "FROM dataset "
@@ -87,38 +91,30 @@ public class Statistics {
 					+ "WHERE predicate LIKE '%" +PLD+ "%' ").write().option("sep", ";").csv(output_dir + "/CountPropertiesPLD");
 	}
 	
-<<<<<<< HEAD
-
-=======
-	//okay but parser does not support blank node
->>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
+	//stat 10
 	public void bNodesObject() {	
 		session.sql("SELECT COUNT (object) AS bNodesObject "
 					+ "FROM dataset "
 					+ "WHERE object LIKE '_:%' ").write().option("sep", ";").csv(output_dir + "/BNodesObject");
 	}
 	
-<<<<<<< HEAD
-
-=======
-	//okay but parser does not support blank node	
->>>>>>> 51d4fc9cf6246b8368f20fcd6bbc86b4c78401e8
+	//stat 11
 	public void bNodesSubject() {
 		session.sql("SELECT COUNT (subject) AS bNodesSubject "
 					+ "FROM dataset "
 					+ "WHERE subject LIKE '_:%' ").write().option("sep", ";").csv(output_dir + "/BNodesSubject");
 	}
 	
-
+	//stat 12
 	public void datatype() {
 		session.sql("SELECT datatype, COUNT(datatype) AS nDatatype  "
 					+ "FROM dataset "
-					+ "WHERE datatype != 'null' "
+					+ "WHERE datatype is not null "
 					+ "GROUP BY datatype "
 					+ "ORDER BY nDatatype DESC").write().option("sep", ";").csv(output_dir + "/Datatype");
 	}
 
-
+	//stat 13
 	public void countLanguage() {
 		session.sql("SELECT language, COUNT(language) as nLanguage "
 					+ "FROM (SELECT substring(object, -3, 3) AS language "
@@ -129,14 +125,41 @@ public class Statistics {
 					+ "ORDER BY nLanguage DESC").write().option("sep", ";").csv(output_dir + "/CountLanguage");
 	} 
 
-	
+	//stat 16
 	public void rdfsLabel() {
 		session.sql("SELECT COUNT(subject) as countLabel "
 					+ "FROM dataset "
 					+ "WHERE predicate = 'http://www.w3.org/2000/01/rdf-schema#label' ").write().option("sep", ";").csv(output_dir + "/RdfsLabel");
 	}
 	
+	//stat 17
+	public void literalsWithType() {	
+		session.sql("SELECT COUNT(type) AS LiteralsWithType "
+					+ "FROM dataset "
+					+ "WHERE type = 'dt_relational' "
+					+ "AND datatype is not null ").write().option("sep", ";").csv(output_dir + "/LiteralsWithType"); 
+	}
 	
+	//stat 18
+	public void literalsWithoutType() {	
+		session.sql("SELECT COUNT(type) AS LiteralsWithoutType "
+					+ "FROM dataset "
+					+ "WHERE datatype is null "
+					+ "AND type = 'dt_relational' ").write().option("sep", ";").csv(output_dir + "/LiteralsWithoutType"); 
+	}
+	
+	//stat 22
+	public void sameAsLink() {
+		session.sql("SELECT MIN(number), AVG(number), MAX(number), (SELECT COUNT(subject) "
+																	+ "FROM dataset "
+																	+ "WHERE predicate = 'http://www.w3.org/2002/07/owl#sameAs') AS NTriples  "
+					+ "FROM (SELECT COUNT(subject) AS number "
+							+ "FROM dataset "
+							+ "WHERE predicate = 'http://www.w3.org/2002/07/owl#sameAs' "
+							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "/SameAsLink");
+	}
+	
+	//stat 23
 	public void owlSameas() {
 		session.sql("SELECT COUNT(subject) AS WithOwlSemeas, (SELECT COUNT(subject) "
 															+ "FROM dataset "
@@ -145,25 +168,50 @@ public class Statistics {
 					+ "WHERE predicate = 'http://www.w3.org/2002/07/owl#sameAs' ").write().option("sep", ";").csv(output_dir + "/OwlSameas");
 	}
 	
+	//stat 24
+	public void lengthStringAndUntypedLiterals() {
+		session.sql("SELECT AVG(LENGTH(object)) AS AVGLengthLiterals "
+					+ "FROM dataset "
+					+ "WHERE type = 'dt_relational' "
+					+ "AND datatype is null "
+					+ "OR datatype = 'http://www.w3.org/2001/XMLSchema#string' ").write().option("sep", ";").csv(output_dir + "/LengthStringAndUntypedLiterals");
+	}
+	
+	//stat 30
+	public void subjectPredicates() {
+		session.sql("SELECT MIN(nPredicate), AVG(nPredicate), MAX(nPredicate), STDDEV(nPredicate) "
+					+ "FROM (SELECT COUNT (DISTINCT predicate) AS nPredicate "
+							+ "FROM dataset " 
+							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "SubjectPredicates");
+	}
+	
+	//stat 32
+	public void subjectObject() {
+		session.sql("SELECT MIN(nPredicate), AVG(nPredicate), MAX(nPredicate) "
+					+ "FROM (SELECT COUNT (DISTINCT predicate) AS nPredicate "
+							+ "FROM dataset " 
+							+ "GROUP BY subject, object) ").write().option("sep", ";").csv(output_dir + "SubjectPredicates");
+	}
 
+	//stat 33
 	public void subjectCount() {
-		session.sql("SELECT MIN(number), AVG(number), MAX(Number) "
+		session.sql("SELECT MIN(number), AVG(number), MAX(number) "
 					+ "FROM (SELECT COUNT (object) AS number "
 							+ "FROM dataset "
 							+ "WHERE predicate != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "
-							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "/SubjectCount");
+							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "/SubjectObject");
 	}
 	
-
+	//stat 34
 	public void objectCount() {
-		session.sql("SELECT MIN(number), AVG(number), MAX(Number) "
+		session.sql("SELECT MIN(number), AVG(number), MAX(number) "
 					+ "FROM (SELECT COUNT (subject) AS number "
 							+ "FROM dataset "
 							+ "WHERE predicate != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "
 							+ "GROUP BY object) ").write().option("sep", ";").csv(output_dir + "/ObjectCount");
 	}
 	
-
+	//stat 35
 	public void predicateTriples() {
 		session.sql("SELECT predicate, COUNT (predicate) AS nTriples "
 					+ "FROM dataset " 
@@ -171,7 +219,7 @@ public class Statistics {
 					+ "ORDER BY nTriples DESC").write().option("sep", ";").csv(output_dir + "/PredicateTriples");
 	}
 	
-
+	//stat 36
 	public void predicateSubjects() {
 		session.sql("SELECT predicate, COUNT (DISTINCT subject) AS nSubjects "
 					+ "FROM dataset " 
@@ -179,7 +227,7 @@ public class Statistics {
 					+ "ORDER BY nSubjects DESC ").write().option("sep", ";").csv(output_dir + "/PredicateSubjects");
 	}
 
-	
+	//stat 37
 	public void predicateObjects() {
 		session.sql("SELECT predicate, COUNT (DISTINCT object) AS nObjects "
 					+ "FROM dataset "
@@ -187,5 +235,13 @@ public class Statistics {
 					+ "GROUP BY predicate "
 					+ "ORDER BY nObjects DESC ").write().option("sep", ";").csv(output_dir + "/PredicateObjects"); 
 	}
-
+	
+	//stat 46
+	public void typedSubject() {
+		session.sql("SELECT MIN(nSubject), AVG(nSubject), MAX(nSubject) "
+					+ "FROM (SELECT COUNT(subject) as nSubject "
+						+ "FROM dataset "
+						+ "WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "
+						+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "/TypedSubject"); 
+	}
 }
