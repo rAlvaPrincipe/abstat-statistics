@@ -29,7 +29,7 @@ public class Statistics {
 		prefixes.show(50, false);
 		
 		s.preProcessing(datasets);
-		s.countConceptsPLD();			
+	/*	s.countConceptsPLD();			
 		s.countPropertiesPLD();	
 		s.bNodesObject();				
 		s.bNodesSubject(); 				
@@ -39,11 +39,11 @@ public class Statistics {
 		s.incomingLinks();				
 		s.rdfsLabel();					
 		s.literalsWithType();			
-		s.literalsWithoutType();
+		s.literalsWithoutType(); */
 		s.vocabularies(); 	
-		s.sameAsLink();					
+	/*	s.sameAsLink();					
 		s.owlSameas();					
-		s.lengthStringAndUntypedLiterals();				 
+		s.lengthStringAndUntypedLiterals();			 
 		s.nTypedSubject();				
 		s.nUntypedSubject(); 		
 		s.triplesEntity();		
@@ -54,9 +54,13 @@ public class Statistics {
 		s.predicateTriples();			
 		s.predicateSubjects(); 			
 		s.predicateObjects(); 
-
+		s.subjectObjectRatio();
+		s.subjectPredicateRatio();
+		s.predicateObjectRatio(); 
+		s.distinctList();
+		s.rarePredicate();
 		s.predicateList();
-		s.typedSubject();		
+		s.typedSubject();		*/
 	}
 	
 	public void preProcessing(String[] datasets) throws Exception {
@@ -134,7 +138,7 @@ public class Statistics {
 					+ "FROM dataset "
 					+ "WHERE subject LIKE '%" +PLD+ "%' "
 					+ "AND object NOT LIKE '%" +PLD+ "%' "
-					+ "AND type = 'object_relational' ").show();
+					+ "AND type = 'object_relational' ").write().option("sep", ";").csv(output_dir + "/OutgoingLinks");
 	}
 	
 	//stat 15
@@ -143,7 +147,7 @@ public class Statistics {
 					+ "FROM dataset "
 					+ "WHERE object LIKE '%" +PLD+ "%' "
 					+ "AND subject NOT LIKE '%" +PLD+ "%' "
-					+ "AND type = 'object_relational' ").show();
+					+ "AND type = 'object_relational' ").write().option("sep", ";").csv(output_dir + "/IncomingLinks");
 	}
 
 	//stat 16
@@ -173,14 +177,10 @@ public class Statistics {
 	public void vocabularies() {
 		session.sql("SELECT namespace, COUNT (namespace) AS NPredicate "
 					+ "FROM dataset JOIN list "
-					+ "WHERE predicate LIKE CONCAT (namespace,'%') "
-					+ "GROUP BY namespace ").show(200, false);
-
-		session.sql("SELECT namespace, COUNT (namespace) AS number "
-					+ "FROM dataset JOIN list "
-					+ "WHERE subject LIKE CONCAT (namespace,'%') "
+					+ "WHERE predicate LIKE CONCAT (namespace,'%')"
+					+ "OR subject LIKE CONCAT (namespace,'%')  "
 					+ "OR object LIKE CONCAT (namespace,'%') "
-					+ "GROUP BY namespace ").show(200, false);
+					+ "GROUP BY namespace ").write().option("sep", ";").csv(output_dir + "/Vocabularies"); 
 	}
 	
 	//stat 22
@@ -214,18 +214,18 @@ public class Statistics {
 	
 	//stat 25
 	public void nTypedSubject() {
-		session.sql("SELECT COUNT (subject) "
+		session.sql("SELECT COUNT (DISTINCT subject) "
 					+ "FROM dataset "
-					+ "AND type is not null "
-					+ "GROUP BY subject").show();
+					+ "WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' ").write().option("sep", ";").csv(output_dir + "/nTypedSubject");
 	}
 	
 	//stat 26
 	public void nUntypedSubject() {
 		session.sql("SELECT COUNT (DISTINCT subject) "
 					+ "FROM dataset "
-					+ "AND type is null "
-					+ "GROUP BY subject").show();
+					+ "WHERE subject NOT IN (SELECT subject "
+											+ "FROM dataset "
+											+ "WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type') ").write().option("sep", ";").csv(output_dir + "/nUntypedSubject");
 	}
 	
 	//stat 29
@@ -235,7 +235,7 @@ public class Statistics {
 							+ "FROM dataset "
 							+ "WHERE type = 'dt_relational' "
 							+ "OR type = 'object_relational' "
-							+ "GROUP BY subject) ").show();	
+							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "/TriplesEntity");
 	}
 	
 	//stat 30
@@ -243,7 +243,7 @@ public class Statistics {
 		session.sql("SELECT MIN(nPredicate), AVG(nPredicate), MAX(nPredicate), STDDEV(nPredicate) "
 					+ "FROM (SELECT COUNT (DISTINCT predicate) AS nPredicate "
 							+ "FROM dataset " 
-							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "SubjectPredicates");
+							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "/SubjectPredicates");
 	}
 	
 	//stat 32
@@ -251,7 +251,7 @@ public class Statistics {
 		session.sql("SELECT MIN(nPredicate), AVG(nPredicate), MAX(nPredicate) "
 					+ "FROM (SELECT COUNT (DISTINCT predicate) AS nPredicate "
 							+ "FROM dataset " 
-							+ "GROUP BY subject, object) ").write().option("sep", ";").csv(output_dir + "SubjectPredicates");
+							+ "GROUP BY subject, object) ").write().option("sep", ";").csv(output_dir + "/SubjectPredicates");
 	}
 
 	//stat 33
@@ -296,6 +296,75 @@ public class Statistics {
 					+ "GROUP BY predicate "
 					+ "ORDER BY nObjects DESC ").write().option("sep", ";").csv(output_dir + "/PredicateObjects"); 
 	}
+	
+	//stat 38
+	public void subjectObjectRatio() {
+		session.sql("SELECT subject, COUNT(subject) AS nSubject "
+					+ "FROM dataset "
+					+ "GROUP BY subject ").createOrReplaceTempView("Subject");
+			
+		session.sql("SELECT object, COUNT(object) AS nObject "
+					+ "FROM dataset "
+					+ "GROUP BY object ").createOrReplaceTempView("Object");
+			
+		session.sql("SELECT MIN(number), AVG(number), MAX(number) "
+					+ "FROM (SELECT nSubject/nObject AS number "
+							+ "FROM Subject, Object "
+							+ "WHERE subject = object) ").show(100, false);
+	}
+		
+	//stat 39
+	public void subjectPredicateRatio() {
+		session.sql("SELECT subject, COUNT(subject) AS nSubject "
+					+ "FROM dataset "
+					+ "GROUP BY subject ").createOrReplaceTempView("Subject");
+			
+		session.sql("SELECT predicate, COUNT(predicate) AS nPredicate "
+					+ "FROM dataset "
+					+ "GROUP BY predicate ").createOrReplaceTempView("Predicate");
+			
+		session.sql("SELECT MIN(number), AVG(number), MAX(number) "
+					+ "FROM (SELECT nSubject/nPredicate AS number "
+							+ "FROM Subject, Predicate "
+							+ "WHERE subject = predicate) ").show(100, false);
+	}
+		
+	//stat 40
+	public void predicateObjectRatio() {
+		session.sql("SELECT predicate, COUNT(predicate) AS nPredicate "
+					+ "FROM dataset "
+					+ "GROUP BY predicate ").createOrReplaceTempView("Predicate");
+		
+		session.sql("SELECT object, COUNT(object) AS nObject "
+					+ "FROM dataset "
+					+ "GROUP BY object ").createOrReplaceTempView("Object");
+			
+		session.sql("SELECT MIN(number), AVG(number), MAX(number) "
+					+ "FROM (SELECT nPredicate/nObject AS number "
+							+ "FROM Predicate, Object "
+							+ "WHERE predicate = object) ").show(100, false);
+	}
+		
+	//stat 41
+	public void distinctList() {
+		session.sql("SELECT predicate, COUNT(predicate) "
+					+ "FROM dataset "
+					+ "GROUP BY predicate "
+					+ "HAVING COUNT(predicate) = 1" ).createOrReplaceTempView("rare");
+			
+		session.sql("SELECT COUNT (DISTINCT subject) AS nDistinctListPredicate "
+					+ "FROM dataset, rare "
+					+ "WHERE rare.predicate = dataset.predicate ").show(100, false);
+	}
+
+	//stat 43
+	public void rarePredicate() {
+		session.sql("SELECT COUNT(predicate) AS RarePradicate "
+					+ "FROM (SELECT predicate "
+							+ "FROM dataset "
+							+ "GROUP BY predicate "
+							+ "HAVING COUNT(predicate) = 1)" ).show(100, false);
+		}
 	
 	//stat 44
 	public void predicateList() {
