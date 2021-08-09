@@ -39,9 +39,9 @@ public class Statistics {
 		s.incomingLinks();				
 		s.rdfsLabel();					
 		s.literalsWithType();			
-		s.literalsWithoutType(); */
+		s.literalsWithoutType(); 
 		s.vocabularies(); 	
-	/*	s.sameAsLink();					
+		s.sameAsLink();					
 		s.owlSameas();					
 		s.lengthStringAndUntypedLiterals();			 
 		s.nTypedSubject();				
@@ -53,14 +53,13 @@ public class Statistics {
 		s.objectCount();				
 		s.predicateTriples();			
 		s.predicateSubjects(); 			
-		s.predicateObjects(); 
+		s.predicateObjects();
 		s.subjectObjectRatio();
 		s.subjectPredicateRatio();
-		s.predicateObjectRatio(); 
-		s.distinctList();
+		s.predicateObjectRatio(); 	
 		s.rarePredicate();
-		s.predicateList();
-		s.typedSubject();		*/
+		s.typedSubject();	*/
+		s.prova2();
 	}
 	
 	public void preProcessing(String[] datasets) throws Exception {
@@ -256,7 +255,7 @@ public class Statistics {
 
 	//stat 33
 	public void subjectCount() {
-		session.sql("SELECT MIN(number), AVG(number), MAX(number) "
+		session.sql("SELECT MIN(number) AS min, AVG(number) AS avg, MAX(number) AS max "
 					+ "FROM (SELECT COUNT (object) AS number "
 							+ "FROM dataset "
 							+ "WHERE predicate != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "
@@ -265,7 +264,7 @@ public class Statistics {
 	
 	//stat 34
 	public void objectCount() {
-		session.sql("SELECT MIN(number), AVG(number), MAX(number) "
+		session.sql("SELECT MIN(number) AS min, AVG(number) AS avg, MAX(number) AS max "
 					+ "FROM (SELECT COUNT (subject) AS number "
 							+ "FROM dataset "
 							+ "WHERE predicate != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "
@@ -302,15 +301,17 @@ public class Statistics {
 		session.sql("SELECT subject, COUNT(subject) AS nSubject "
 					+ "FROM dataset "
 					+ "GROUP BY subject ").createOrReplaceTempView("Subject");
-			
-		session.sql("SELECT object, COUNT(object) AS nObject "
+		
+		session.sql("SELECT subject, object, COUNT(*) AS tot "
 					+ "FROM dataset "
-					+ "GROUP BY object ").createOrReplaceTempView("Object");
-			
-		session.sql("SELECT MIN(number), AVG(number), MAX(number) "
-					+ "FROM (SELECT nSubject/nObject AS number "
+					+ "WHERE type = 'dt_relational' "
+					+ "GROUP BY subject, object ").createOrReplaceTempView("Object");
+		
+		session.sql("SELECT MIN(number) AS min, AVG(number) AS avg, MAX(number) AS max "
+					+ "FROM (SELECT nSubject/tot AS number "
 							+ "FROM Subject, Object "
-							+ "WHERE subject = object) ").show(100, false);
+							+ "WHERE Subject.subject = Object.subject "
+							+ "OR Subject.subject = Object.object ) ").show(100, false);
 	}
 		
 	//stat 39
@@ -318,14 +319,23 @@ public class Statistics {
 		session.sql("SELECT subject, COUNT(subject) AS nSubject "
 					+ "FROM dataset "
 					+ "GROUP BY subject ").createOrReplaceTempView("Subject");
+		
+		session.sql("SELECT COUNT(*) AS tot "
+					+ "FROM dataset ").createOrReplaceTempView("Tot");
+	
+		session.sql("SELECT subject, nSubject/tot AS nSubjectTot "
+					+ "FROM Subject CROSS JOIN Tot ").createOrReplaceTempView("SubjectTot");
 			
 		session.sql("SELECT predicate, COUNT(predicate) AS nPredicate "
 					+ "FROM dataset "
 					+ "GROUP BY predicate ").createOrReplaceTempView("Predicate");
+		
+		session.sql("SELECT predicate, nPredicate/tot AS nPredicateTot "
+					+ "FROM Predicate CROSS JOIN Tot ").createOrReplaceTempView("PredicateTot");
 			
-		session.sql("SELECT MIN(number), AVG(number), MAX(number) "
-					+ "FROM (SELECT nSubject/nPredicate AS number "
-							+ "FROM Subject, Predicate "
+		session.sql("SELECT MIN(number) AS min, AVG(number) AS avg, MAX(number) AS max "
+					+ "FROM (SELECT nSubjectTot/nPredicateTot AS number "
+							+ "FROM SubjectTot, PredicateTot "
 							+ "WHERE subject = predicate) ").show(100, false);
 	}
 		
@@ -335,26 +345,23 @@ public class Statistics {
 					+ "FROM dataset "
 					+ "GROUP BY predicate ").createOrReplaceTempView("Predicate");
 		
+		session.sql("SELECT COUNT(*) AS tot "
+					+ "FROM dataset ").createOrReplaceTempView("Tot");
+		
+		session.sql("SELECT predicate, nPredicate/tot AS nPredicateTot "
+					+ "FROM Predicate CROSS JOIN Tot ").createOrReplaceTempView("PredicateTot");
+		
 		session.sql("SELECT object, COUNT(object) AS nObject "
 					+ "FROM dataset "
 					+ "GROUP BY object ").createOrReplaceTempView("Object");
-			
-		session.sql("SELECT MIN(number), AVG(number), MAX(number) "
-					+ "FROM (SELECT nPredicate/nObject AS number "
-							+ "FROM Predicate, Object "
-							+ "WHERE predicate = object) ").show(100, false);
-	}
 		
-	//stat 41
-	public void distinctList() {
-		session.sql("SELECT predicate, COUNT(predicate) "
-					+ "FROM dataset "
-					+ "GROUP BY predicate "
-					+ "HAVING COUNT(predicate) = 1" ).createOrReplaceTempView("rare");
+		session.sql("SELECT object, nObject/tot AS nObjectTot "
+					+ "FROM Object CROSS JOIN Tot ").createOrReplaceTempView("ObjectTot");
 			
-		session.sql("SELECT COUNT (DISTINCT subject) AS nDistinctListPredicate "
-					+ "FROM dataset, rare "
-					+ "WHERE rare.predicate = dataset.predicate ").show(100, false);
+		session.sql("SELECT MIN(number) AS min, AVG(number) AS avg, MAX(number) AS max "
+					+ "FROM (SELECT nPredicateTot/nObjectTot AS number "
+							+ "FROM PredicateTot, ObjectTot "
+							+ "WHERE predicate = object) ").show(100, false);
 	}
 
 	//stat 43
@@ -365,14 +372,6 @@ public class Statistics {
 							+ "GROUP BY predicate "
 							+ "HAVING COUNT(predicate) = 1)" ).show(100, false);
 		}
-	
-	//stat 44
-	public void predicateList() {
-		session.sql("SELECT MIN(number), AVG(number), MAX(number) "
-					+ "FROM (SELECT subject, COUNT(predicate) AS number "
-							+ "FROM dataset "
-							+ "GROUP BY subject) ").show(100, false);
-	}
 
 	//stat 46
 	public void typedSubject() {
@@ -383,4 +382,21 @@ public class Statistics {
 							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "/TypedSubject"); 
 	}
 	
+	public void prova() {
+		session.sql("SELECT subject, COLLECT_SET(predicate) "
+						+ "FROM dataset "
+						+ "GROUP BY subject ").show(100,false);
+	}
+	
+	public void prova2() {
+		session.sql("SELECT predicate, COUNT(predicate) AS nPredicate "
+				+ "FROM dataset "
+				+ "GROUP BY predicate ").createOrReplaceTempView("Predicate");
+		
+		session.sql("SELECT COUNT(*) AS tot "
+					+ "FROM dataset ").createOrReplaceTempView("Tot");
+		
+		session.sql("SELECT predicate, nPredicate/tot "
+					+ "FROM Predicate CROSS JOIN Tot ").show();
+	}
 }
