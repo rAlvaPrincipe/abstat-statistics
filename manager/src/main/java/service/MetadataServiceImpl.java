@@ -10,7 +10,7 @@ import repository.MetadataRepository;
 public class MetadataServiceImpl implements MetadataService {
 	
 	@Autowired
-	private MetadataRepository metadataRepository;
+	MetadataRepository metadataRepository;
 	
 	public Metadata findById(String id) {
 		return metadataRepository.findOne(id);

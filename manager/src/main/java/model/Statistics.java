@@ -3,7 +3,7 @@ package model;
 import java.util.List;
 import java.util.Map;
 
-public class FileModel{
+public class Statistics{
 
 	private String dataset;
 	private String ontology;
