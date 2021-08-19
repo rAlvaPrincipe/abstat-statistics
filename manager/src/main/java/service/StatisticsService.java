@@ -8,6 +8,6 @@ import model.Statistics;
 public interface StatisticsService {
 
 	public Statistics findById(String id);
-
-    public Statistics save(Statistics statistics);
+	
+	public Statistics save(Statistics statistics);
 }

@@ -3,26 +3,25 @@ package model;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import com.fasterxml.jackson.annotation.JsonView;
+
 @Document
 public class Metadata {
 
 	@Id
+	@JsonView(View.Datasets.class)
 	private String id;
+	
+	@JsonView(View.Datasets.class)
 	private String dataset;
+	
 	private String timestamp;
-	private String position;
+	private String positionDataset;
+	private String positionStatistics;
 
 	private boolean isCalculateStatistics;
 	private boolean isConsolidate;
-	
-	public Metadata(String id, String dataset, String timestamp, String position) {
-		this.id = id;
-		this.dataset = dataset;
-		this.timestamp = timestamp;
-		this.position = position;
-		this.isCalculateStatistics = false;
-		this.isConsolidate = false;
-	}
+
 	
 	public String getId() { return id; }
 	public void setId(String id) { this.id = id; }
@@ -39,6 +38,9 @@ public class Metadata {
 	public boolean isConsolidate() {return isConsolidate;}
 	public void setConsolidate(boolean isConsolidate) {this.isConsolidate = isConsolidate;}
 	
-	public String getPosition() {return position;}
-	public void setPosition(String position) {this.position = position;}
+	public String getPositionDataset() {return positionDataset;}
+	public void setPositionDataset(String positionDataset) {this.positionDataset = positionDataset;}
+	
+	public String getPositionStatistics() {return positionStatistics;}
+	public void setPositionStatistics(String positionStatistics) {this.positionStatistics = positionStatistics;}
 }
