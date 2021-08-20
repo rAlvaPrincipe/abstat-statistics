@@ -100,6 +100,12 @@
         	<artifactId>jackson-mapper-asl</artifactId>
         	<version>1.9.13</version>
     	</dependency>
+    	
+    	<dependency>
+			<groupId>org.apache.spark</groupId>
+			<artifactId>spark-sql_2.11</artifactId>
+			<version>2.3.1</version>
+		</dependency>
 
 		</dependencies>
 		<build>

@@ -11,20 +11,19 @@ public class Statistics {
 	private String output_dir;
 	private static String[] datasets;
 	private String PLD;
-	private static String prefix;
+	private String namespaces = "abstat-statistics/namespaces.json";
 
-	public Statistics(String master, String datasets, String output_dir, String PLD, String prefix) {
+	public Statistics(String master, String datasets, String output_dir, String PLD) {
 		this.session = SparkSession.builder().appName("Java Spark SQL basic example").master(master).getOrCreate();
 		this.session.sparkContext().setLogLevel("ERROR");
 		Statistics.datasets = datasets.split(";");
 		this.PLD = PLD;
 		this.output_dir = output_dir;
-		Statistics.prefix = prefix;
 	}
 	
 	public static void main(String[] args) throws Exception {
-		Statistics s = new Statistics(args[0], args[1], args[2], args[3], args[4]);
-		Dataset<Row> prefixes = s.session.read().format("json").load(prefix);
+		Statistics s = new Statistics(args[0], args[1], args[2], args[3]);
+		Dataset<Row> prefixes = s.session.read().format("json").load(s.namespaces);
 		prefixes.createOrReplaceTempView("list");
 		prefixes.show(50, false);
 		
@@ -32,7 +31,7 @@ public class Statistics {
 	/*	s.countConceptsPLD();			
 		s.countPropertiesPLD();	
 		s.bNodesObject();				
-		s.bNodesSubject(); 				
+		s.bNodesSubject(); 			
 		s.datatype();  					
 		s.countLanguage(); 			
 		s.outgoingLinks();				
@@ -40,7 +39,7 @@ public class Statistics {
 		s.rdfsLabel();					
 		s.literalsWithType();			
 		s.literalsWithoutType(); 
-		s.vocabularies(); 	
+		s.vocabularies(); 
 		s.sameAsLink();					
 		s.owlSameas();					
 		s.lengthStringAndUntypedLiterals();			 
