@@ -4,33 +4,40 @@ import java.io.File;
 
 import org.codehaus.jackson.map.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import model.Statistics;
-import model.Metadata;
-import service.MetadataService;
-import service.StatisticsService;
+import model.Profile;
+import model.Profiling;
+import service.ProfilingService;
+import service.ProfileService;
 
 @RestController
 public class ConsolidateAPI {
 	
 	@Autowired
-	MetadataService metadataService;
+	ProfilingService profilingService;
 	
 	@Autowired
-	StatisticsService statisticsService;
+	ProfileService profileService;
     
 	
-	@RequestMapping(value = "/api/consolidate", method = RequestMethod.POST)
-	public void consolidate(@RequestParam(value="id", required=true) String id) throws Exception{
-		Metadata config = metadataService.findById(id);
+	@PostMapping(value = "/api/consolidate")
+	public String consolidate(@RequestParam(value="id", required=true) String id) throws Exception{
+		Profiling profiling = profilingService.findDatasetById(id);
         ObjectMapper mapper = new ObjectMapper();
         
-        // Convert JSON string from file to Object
-        Statistics model = mapper.readValue(new File(config.getPositionStatistics()), Statistics.class);
-		statisticsService.save(model);
+        if(!profiling.isConsolidate()) {
+        	// Convert JSON string from file to Object
+        	Profile profile = mapper.readValue(new File(profiling.getStatisticsPosition()), Profile.class);
+        	profile.setIdDataset(profiling.getIdDataset());
+        	profileService.save(profile);
+        	profiling.setConsolidate(true);
+        	profilingService.update(profiling);
+        	return "statistics saved";
+        }
+        else
+        	return"statistics already saved";
 	}
 }

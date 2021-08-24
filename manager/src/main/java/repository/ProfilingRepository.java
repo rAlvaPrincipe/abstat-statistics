@@ -3,8 +3,8 @@ package repository;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
-import model.Metadata;
+import model.Profiling;
 
 @Repository
-public interface MetadataRepository extends MongoRepository<Metadata, String> {
+public interface ProfilingRepository extends MongoRepository<Profiling, String> {
 }
