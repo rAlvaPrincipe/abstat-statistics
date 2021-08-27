@@ -11,11 +11,10 @@ public class Dataset {
 	@Id
 	@JsonView(View.Datasets.class)
 	private String id;
-	
 	@JsonView(View.Datasets.class)
 	private String datasetName;
-	
 	private String datasetPosition;
+	@JsonView(View.Datasets.class)
 	private boolean isCalculateStatistics;
 
 	

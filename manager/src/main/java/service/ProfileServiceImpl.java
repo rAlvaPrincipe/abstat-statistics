@@ -1,8 +1,11 @@
 package service;
 
+import java.io.File;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import model.Dataset;
 import model.Profile;
 import repository.ProfileRepository;
 
@@ -11,6 +14,9 @@ public class ProfileServiceImpl implements ProfileService {
 	
 	@Autowired
 	ProfileRepository profileRepository;
+	
+	@Autowired
+	DatasetService datasetService;
 	
 	
 	public Profile findById(String id) {
@@ -22,6 +28,12 @@ public class ProfileServiceImpl implements ProfileService {
     }
     
 	public void delete(String id) {
+		Profile profile = findById(id);
+		Dataset dataset = datasetService.findById(profile.getIdDataset());
+		File file = new File(profile.getStatisticsPosition());
+		file.delete();
+		dataset.setCalculateStatistics(false);
+		datasetService.update(dataset);
 		profileRepository.delete(id);
 	}
 	

@@ -15,7 +15,7 @@ public class ExecutorAPI {
 		
 
 		@PostMapping(value = "/api/v1/execute")
-		public String execute(@RequestParam(value="id", required=true) String id, @RequestParam(value="PLD", required=true) String PLD) throws Exception {
+		public String execute(@RequestParam(value="id", required=true) String id, @RequestParam(value="PLD", required=false) String PLD) throws Exception {
 			 return executorService.submit(id, PLD);
 		}
 }

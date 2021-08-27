@@ -28,12 +28,12 @@ public class DatasetCrudAPI {
 
 		// to enable pretty print
         mapper.enable(SerializationFeature.INDENT_OUTPUT);
-        String View = mapper.writerWithView(View.Datasets.class).writeValueAsString(dataset);
-        return View;
+        String viewDatasets = mapper.writerWithView(View.Datasets.class).writeValueAsString(dataset);
+        return viewDatasets;
 	}	
 
-	@GetMapping(value = "/api/v1/delite/dataset", produces = "application/json")
-	public void datasetDelite(@RequestParam(value="id", required=true) String id) throws Exception {	
+	@GetMapping(value = "/api/v1/delete/dataset", produces = "application/json")
+	public void datasetDelete(@RequestParam(value="id", required=true) String id) throws Exception {	
 		datasetService.delete(id);
 	}
 }

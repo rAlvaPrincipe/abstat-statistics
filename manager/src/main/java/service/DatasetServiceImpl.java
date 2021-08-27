@@ -1,6 +1,8 @@
 package service;
 
 
+import java.io.File;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +29,9 @@ public class DatasetServiceImpl implements DatasetService {
 	}
 	
 	public void delete(String id) {
+		Dataset dataset = findById(id);
+		File file = new File(dataset.getDatasetPosition());
+		file.delete();
 		datasetRepository.delete(id);
 	}
 }

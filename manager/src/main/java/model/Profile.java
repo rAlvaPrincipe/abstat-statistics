@@ -5,13 +5,18 @@ import java.util.Map;
 
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import com.fasterxml.jackson.annotation.JsonView;
+
 @Document
 public class Profile{
-
+	
+	@JsonView(View.Profiles.class)
 	private String id;
 	private String idDataset;
+	@JsonView(View.Profiles.class)
 	private String datasetName;
 	private String ontologyName;
+	private String statisticsPosition;
 	private long stat1;
 	private Map<String, Double> stat2;
 	private Map<String, Long> stat3;
@@ -29,6 +34,9 @@ public class Profile{
 	
 	public String getOntologyName() {return ontologyName;}
 	public void setOntologyName(String ontologyName) {this.ontologyName = ontologyName;}
+	
+	public String getStatisticsPosition() {return statisticsPosition;}
+	public void setStatisticsPosition(String statisticsPosition) {this.statisticsPosition = statisticsPosition;}
 	
 	public long getStat1() {return stat1;}
 	public void setStat1(long stat1) {this.stat1 = stat1;}
