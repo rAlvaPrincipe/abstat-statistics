@@ -20,7 +20,7 @@ public class ProfileCrudAPI {
 	ProfileService profileService;
 	
 	
-	@GetMapping(value = "/api/v1/show/profile", produces = "application/json")
+	@GetMapping(value = "/api/v1/profiles", produces = "application/json")
 	public Profile showProfileById(@RequestParam(value="id", required=true) String id) throws Exception{
 		return profileService.findById(id);
 	}
@@ -30,7 +30,7 @@ public class ProfileCrudAPI {
 		profileService.delete(id);
 	}
 	
-	@GetMapping(value = "/api/v1/show/profiles", produces = "application/json")
+	@GetMapping(value = "/api/v1/profiles", produces = "application/json")
 	public String showAllProfile() throws Exception{
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.configure(MapperFeature.DEFAULT_VIEW_INCLUSION, false);
