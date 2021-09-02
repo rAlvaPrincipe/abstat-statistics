@@ -20,7 +20,7 @@ public class DatasetCrudAPI {
 	DatasetService datasetService;
 	
 	
-	@GetMapping(value = "/api/v1/show/datasets", produces = "application/json")
+	@GetMapping(value = "/api/v1/datasets", produces = "application/json")
 	public String datasetShow() throws Exception {	
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.configure(MapperFeature.DEFAULT_VIEW_INCLUSION, false);
