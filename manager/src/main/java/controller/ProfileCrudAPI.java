@@ -20,9 +20,9 @@ public class ProfileCrudAPI {
 	ProfileService profileService;
 	
 	
-	@GetMapping(value = "/api/v1/profiles", produces = "application/json")
+	@GetMapping(value = "/api/v1/profile", produces = "application/json")
 	public Profile showProfileById(@RequestParam(value="id", required=true) String id) throws Exception{
-		return profileService.findById(id);
+      return profileService.findById(id);	
 	}
 	
 	@GetMapping(value = "/api/v1/delete/profile")

@@ -28,8 +28,6 @@ public class ExecutorServiceImpl implements ExecutorService {
 		String datasetPath = dataset.getDatasetPosition(); 
 		String output_dir = "/Users/filippocolombo/abstat-statistics/Statistics/" + datasetname;
 		
-		String stat = "/Users/filippocolombo/abstat-statistics/Statistics/stat/" + datasetname + ".json";
-		
 		Profile profile = new Profile();
 		ObjectMapper mapper = new ObjectMapper();
 		
@@ -52,9 +50,10 @@ public class ExecutorServiceImpl implements ExecutorService {
 			if(p.waitFor() != 1) {
 
 				// Convert JSON string from file to Object
-				profile = mapper.readValue(new File(stat), Profile.class);
+				profile = mapper.readValue(new File(output_dir + "/statistics.json"), Profile.class);
 				profile.setIdDataset(dataset.getId());
 				profile.setStatisticsPosition(output_dir);
+				profile.setDatasetName(datasetname);
 				profileService.save(profile);
 				dataset.setCalculateStatistics(true);
 				datasetService.update(dataset);
