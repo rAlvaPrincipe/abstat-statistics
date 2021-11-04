@@ -1,5 +1,7 @@
 package service;
 
+import java.io.IOException;
+
 import org.springframework.stereotype.Service;
 
 import model.Profile;
@@ -11,7 +13,7 @@ public interface ProfileService {
 	
 	public void save(Profile profile);
 	
-	public void delete(String id);
+	public void delete(String id) throws IOException;
 	
 	public Iterable<Profile> read();
 }
