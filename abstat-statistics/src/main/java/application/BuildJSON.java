@@ -5,6 +5,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+import org.apache.zookeeper.server.SessionTracker.Session;
+
 import static org.apache.spark.sql.functions.*;
 import java.io.File;
 import java.io.IOException;
@@ -31,10 +33,14 @@ public class BuildJSON {
 	}
 	
 	public void oneElement (String output_dir, ArrayList<String> arrayList) {
-		session.read().format("csv").option("sep", ";").load(output_dir + "/" + arrayList.get(0))
-		.select(col("_c0").cast(arrayList.get(1)).alias(arrayList.get(0)))
-		.createOrReplaceTempView("temps");
-		
+		try {
+			session.read().format("csv").option("sep", ";").load(output_dir + "/" + arrayList.get(0))
+			.select(col("_c0").cast(arrayList.get(1)).alias(arrayList.get(0)))
+			.createOrReplaceTempView("temps");
+		}
+		catch(java.lang.UnsupportedOperationException e){
+			session.emptyDataFrame().createOrReplaceTempView("temps");
+		}
 		merged();
 	}
 	
@@ -47,9 +53,14 @@ public class BuildJSON {
 	}
 	
 	public void number (String output_dir, ArrayList<String> arrayList) {
-		session.read().format("csv").option("sep", ";").load(output_dir + "/" + arrayList.get(0))
-		.select(collect_list(struct(col("_c0").alias(arrayList.get(1)), col("_c1").cast("long").alias(arrayList.get(2)))).as(arrayList.get(0)))
-		.createOrReplaceTempView("temps");
+		try{
+			session.read().format("csv").option("sep", ";").load(output_dir + "/" + arrayList.get(0))
+			.select(collect_list(struct(col("_c0").alias(arrayList.get(1)), col("_c1").cast("long").alias(arrayList.get(2)))).as(arrayList.get(0)))
+			.createOrReplaceTempView("temps");
+		}
+		catch(java.lang.UnsupportedOperationException e){
+			session.emptyDataFrame().createOrReplaceTempView("temps");
+		}
 		
 		merged();
 	}
@@ -68,8 +79,9 @@ public class BuildJSON {
 	}
 	
 	public void merged() {
-		session.sql("SELECT merged.*, temps.* "
-					+ "FROM temps CROSS JOIN merged ").createOrReplaceTempView("merged");
+		if (!session.table("temps").rdd().isEmpty())
+			session.sql("SELECT merged.*, temps.* "
+						+ "FROM temps CROSS JOIN merged ").createOrReplaceTempView("merged");
 	}
 	
 	public void mergedAndDeleteFolder (String output_dir, Set<String> set) throws IOException{
