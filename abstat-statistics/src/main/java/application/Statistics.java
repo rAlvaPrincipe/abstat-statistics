@@ -16,7 +16,7 @@ public class Statistics {
 	private String output_dir;
 	private static String[] datasets;
 	private String PLD;
-	private String namespaces = "namespaces.json";
+	private String namespaces = "./abstat-statistics/namespaces.json";
 	static HashMap<String,ArrayList<String>> dir=new HashMap<String,ArrayList<String>>();
 
 	public Statistics(String master, String datasets, String output_dir, String PLD) {
@@ -71,12 +71,27 @@ public class Statistics {
 		JavaRDD<Triple> rdd = new Splitter().calculate(input);
 		Dataset<Row> data = session.createDataFrame(rdd, Triple.class);
 		data.createOrReplaceTempView("dataset");
-		data.show(50, false);
+		//data.show(50, false);
 		new BuildJSON(session).fakeTable();
 	}
 	
 	//stat 4
-	public void countConceptsPLD(){		
+	public void countConceptsPLD(){	
+		
+		String like = "";
+		String not_like = "";
+		String[] PLDs = PLD.split(" ");
+		for (int i=0; i< PLDs.length; i++){
+			if(i==0){
+				not_like += "WHERE object NOT LIKE '%" +PLDs[i]+ "%' ";
+				like += "WHERE object NOT LIKE '%" +PLDs[i]+ "%' ";
+			}
+			else {
+				not_like += "OR object  NOT LIKE  '%" +PLDs[i]+ "%' ";
+				like += "OR object LIKE  '%" +PLDs[i]+ "%' ";
+			}
+		}
+
 		session.sql("SELECT object "
 					+ "FROM dataset "
 					+ "WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "
@@ -84,9 +99,9 @@ public class Statistics {
 			
 		session.sql("SELECT COUNT(object) AS withPLD, (SELECT COUNT(object) "
 													+ "FROM DistinctObject "
-													+ "WHERE object NOT LIKE '%" +PLD+ "%') AS withoutPLD "
+													+ not_like + ") AS withoutPLD "
 					+ "FROM DistinctObject "
-					+ "WHERE object LIKE '%" +PLD+ "%' ").write().option("sep", ";").csv(output_dir + "/countConceptsPLD");
+					+ like).write().option("sep", ";").csv(output_dir + "/countConceptsPLD");
 		
 		dir.put("countConceptsPLD", new ArrayList<String>(Arrays.asList("countConceptsPLD", "withPLD", "withoutPLD")));
 		new BuildJSON(session).withAndWithout(output_dir, dir.get("countConceptsPLD"));
