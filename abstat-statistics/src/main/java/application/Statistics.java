@@ -8,7 +8,8 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
-
+import scala.collection.Seq;
+import org.apache.spark.sql.functions.regexp_replace;
 
 public class Statistics {
 	
@@ -16,7 +17,7 @@ public class Statistics {
 	private String output_dir;
 	private static String[] datasets;
 	private String PLD;
-	private String namespaces = "./abstat-statistics/namespaces.json";
+	private String namespaces = "./namespaces.json";
 	static HashMap<String,ArrayList<String>> dir=new HashMap<String,ArrayList<String>>();
 
 	public Statistics(String master, String datasets, String output_dir, String PLD) {
@@ -227,12 +228,55 @@ public class Statistics {
 
 	//stat 19
 	public void vocabularies() {
-		session.sql("SELECT namespace, COUNT (namespace) AS NPredicate "
-										+ "FROM dataset JOIN list "
-										+ "WHERE predicate LIKE CONCAT (namespace,'%')"
-										+ "OR subject LIKE CONCAT (namespace,'%')  "
-										+ "OR object LIKE CONCAT (namespace,'%') "
-										+ "GROUP BY namespace ").write().option("sep", ";").csv(output_dir + "/vocabularies");
+		session.sql("SELECT subject as spo  " 
+		          + "FROM (SELECT subject from dataset WHERE type = 'object_relational') "
+				  + "UNION ALL (SELECT object from dataset WHERE type = 'object_relational') "
+				  + "UNION ALL (SELECT predicate from dataset WHERE type = 'object_relational')"
+				  + "UNION ALL (SELECT subject  from dataset WHERE type = 'dt_relational')"
+				  + "UNION ALL (SELECT predicate from dataset WHERE type = 'dt_relational')"
+				  + "UNION ALL (SELECT subject from dataset WHERE type = 'typing')"
+				  + "UNION ALL (SELECT predicate from dataset WHERE type = 'typing')"
+				  + "UNION ALL (SELECT object from dataset WHERE type = 'typing')").createOrReplaceTempView("spo");
+
+		//regexp_replace(spo, '\\/[A-Z,a-z,0-9,_,.,(,),-]*$',''
+		session.sql("SELECT clean_spo as vocabulary_basic, COUNT(*) AS count_basic FROM " 
+		          + "  (SELECT regexp_replace(spo, '(#|\\/)[^\\/#]*$','') as clean_spo " 
+				  + "  FROM spo ) "
+				  + "  WHERE clean_spo != 'http:/' "
+				  + "GROUP BY clean_spo").createOrReplaceTempView("count_basic");
+		//session.table("count_basic").show(200, false);
+
+
+		// the following operations are meant to deal with cases like http://dbpedia.org/ontology/PopulatedPlace
+		session.sql("SELECT vocabulary_temp, SUM(count_basic) AS count_temp FROM " 
+				+ "  (SELECT regexp_replace(vocabulary_basic, '\\/[^\\/]*$','') as vocabulary_temp, count_basic" 
+				+ "  FROM count_basic ) "
+				+ "GROUP BY vocabulary_temp").createOrReplaceTempView("count_temp");
+		//session.table("count_temp").show(200, false);
+
+		// clean_detailed
+		session.sql("SELECT vocabulary_basic, regexp_replace(vocabulary_basic, '\\/[^\\/]*$','') as vocabulary_temp, count_basic" 
+				+ "  FROM count_basic ").createOrReplaceTempView("detailed");
+		//session.table("detailed").show(200, false);
+		
+		// calc intersection
+		session.sql("SELECT vocabulary_basic as intersection FROM (SELECT vocabulary_basic from count_basic) INTERSECT (SELECT vocabulary_temp from count_temp) ").createOrReplaceTempView("intersect");
+		//session.table("intersect").show(200, false);
+
+
+		// calcoli i prefissi da togliere dalla prima versione.
+		session.sql("SELECT vocabulary_basic as to_remove FROM intersect INNER JOIN detailed ON intersect.intersection=detailed.vocabulary_temp").createOrReplaceTempView("to_remove");
+		//session.table("to_remove").show(200, false);
+		
+		// count_basic clean
+		session.sql("SELECT vocabulary_basic, count_basic FROM count_basic LEFT JOIN to_remove on vocabulary_basic=to_remove WHERE to_remove IS NULL").createOrReplaceTempView("count_basic");
+		//session.table("count_basic").show(200, false);
+
+		// count basic with updated counter
+		String[] colNames = {"count_temp"};
+		session.sql("SELECT *  from  count_basic LEFT JOIN count_temp ON vocabulary_basic=vocabulary_temp ").na().fill(0, colNames).createOrReplaceTempView("temp");
+		session.sql("SELECT vocabulary_basic as vocabulary, (count_basic + count_temp) AS count from temp").write().option("sep", ";").csv(output_dir + "/vocabularies");
+
 		
 		dir.put("vocabularies", new ArrayList<String>(Arrays.asList("vocabularies", "namespace", "nPredicate")));
 		new BuildJSON(session).number(output_dir, dir.get("vocabularies"));
