@@ -6,7 +6,6 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.zookeeper.server.SessionTracker.Session;
-
 import static org.apache.spark.sql.functions.*;
 import java.io.File;
 import java.io.IOException;
@@ -19,23 +18,24 @@ import java.util.Set;
 public class BuildJSON {
 	
 	private SparkSession session;
+	private String output_dir;
 	
-	public BuildJSON(SparkSession session) {
+	public BuildJSON(SparkSession session, String output_dir) {
 		this.session = session;
+		this.output_dir = output_dir;
 	}
 
-	public void withAndWithout (String output_dir, ArrayList<String> arrayList) {
-		session.read().format("csv").option("sep", ";").load(output_dir + "/" + arrayList.get(0))
-		.select(struct(col("_c0").cast("long").alias(arrayList.get(1)), col("_c1").cast("long").alias(arrayList.get(2))).as(arrayList.get(0)))
+	public void withAndWithout (String[] list) {
+		session.read().format("csv").option("header", true).option("sep", ";").load(output_dir + "/" + list[0])
+		.select(struct(col(list[1]).cast("long").alias(list[1]), col(list[2]).cast("long").alias(list[2])).as(list[0]))
 		.createOrReplaceTempView("temps");
-		
 		merged();
 	}
 	
-	public void oneElement (String output_dir, ArrayList<String> arrayList) {
+	public void oneElement (String[] list) {
 		try {
-			session.read().format("csv").option("sep", ";").load(output_dir + "/" + arrayList.get(0))
-			.select(col("_c0").cast(arrayList.get(1)).alias(arrayList.get(0)))
+			session.read().format("csv").option("header", true).option("sep", ";").load(output_dir + "/" + list[0])
+			.select(col(list[1]).cast(list[2]).alias(list[0]))
 			.createOrReplaceTempView("temps");
 		}
 		catch(java.lang.UnsupportedOperationException e){
@@ -44,18 +44,18 @@ public class BuildJSON {
 		merged();
 	}
 	
-	public void minMaxAvg (String output_dir, ArrayList<String> arrayList) {
-		session.read().format("csv").option("sep", ";").load(output_dir + "/" + arrayList.get(0))
-		.select(struct(col("_c0").cast("double").alias("min"), col("_c1").cast("double").alias("avg"), col("_c2").cast("double").alias("max")).as(arrayList.get(0)))
+	public void minMaxAvg (String[] list) {
+		session.read().format("csv").option("header",true).option("sep", ";").load(output_dir + "/" + list[0])
+		.select(struct(col("min").cast("double").alias("min"), col("avg").cast("double").alias("avg"), col("max").cast("double").alias("max")).as(list[0]))
 		.createOrReplaceTempView("temps");
 		
 		merged();
 	}
 	
-	public void number (String output_dir, ArrayList<String> arrayList) {
+	public void number (String[] list) {
 		try{
-			session.read().format("csv").option("sep", ";").load(output_dir + "/" + arrayList.get(0))
-			.select(collect_list(struct(col("_c0").alias(arrayList.get(1)), col("_c1").cast("long").alias(arrayList.get(2)))).as(arrayList.get(0)))
+			session.read().format("csv").option("header", true).option("sep", ";").load(output_dir + "/" + list[0])
+			.select(collect_list(struct(col(list[1]), col(list[2]).cast("long").alias(list[2]))).as(list[0]))
 			.createOrReplaceTempView("temps");
 		}
 		catch(java.lang.UnsupportedOperationException e){
@@ -65,9 +65,9 @@ public class BuildJSON {
 		merged();
 	}
 	
-	public void minMaxAvgOther (String output_dir, ArrayList<String> arrayList) {
-		session.read().format("csv").option("sep", ";").load(output_dir + "/" +arrayList.get(0))
-		.select(struct(col("_c0").cast("double").alias("min"), col("_c1").cast("double").alias("avg"), col("_c2").cast("double").alias("max"), col("_c3").cast("double").alias(arrayList.get(1))).as(arrayList.get(0)))
+	public void minMaxAvgOther (String[] list) {
+		session.read().format("csv").option("header",true).option("sep", ";").load(output_dir + "/" +list[0])
+		.select(struct(col("min").cast("double").alias("min"), col("avg").cast("double").alias("avg"), col("max").cast("double").alias("max"), col(list[1]).cast("double").alias(list[1])).as(list[0]))
 		.createOrReplaceTempView("temps");
 		
 		merged();
@@ -84,11 +84,7 @@ public class BuildJSON {
 						+ "FROM temps CROSS JOIN merged ").createOrReplaceTempView("merged");
 	}
 	
-	public void mergedAndDeleteFolder (String output_dir, Set<String> set) throws IOException{
+	public void mergedAndWrite() throws IOException{
 		session.sql("SELECT * FROM merged").write().json(output_dir + "/merged");
-		Iterator<String> dir = set.iterator();
-		List<String> dirList = IteratorUtils.toList(dir); 
-		for(int i=0; i<dirList.size(); i++)
-			FileUtils.forceDelete(new File(output_dir + "/" + dirList.get(i)));
 	}
 }
