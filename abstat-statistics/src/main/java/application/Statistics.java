@@ -315,12 +315,12 @@ public class Statistics {
 	
 	//stat 26
 	public void untypedSubject() {
-		session.sql("SELECT COUNT (DISTINCT subject) AS nUntypedSubject "
-					+ "FROM dataset "
-					+ "WHERE subject NOT IN (SELECT subject "
-											+ "FROM dataset "
-											+ "WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type') ").write().option("header", true).option("sep", ";").csv(output_dir + "/untypedSubject");
-		
+		session.sql("select * FROM "
+			     + "(SELECT DISTINCT subject FROM dataset) "
+				 +	"MINUS "
+				 + "(SELECT DISTINCT subject FROM dataset WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type')").createOrReplaceTempView("untyped_subjects");
+
+		session.sql("SELECT COUNT(DISTINCT subject) AS nUntypedSubject FROM untyped_subjects").write().option("header", true).option("sep", ";").csv(output_dir + "/untypedSubject");
 		json_builder.oneElement(new String[]{"untypedSubject", "nUntypedSubject", "long"});
 	}
 	
