@@ -1,6 +1,9 @@
 package application;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -11,20 +14,24 @@ public class Statistics {
 	private SparkSession session;
 	private String output_dir;
 	private static String[] datasets;
-	private String PLD;
+	private String[] PLDs;
 	private BuildJSON json_builder;
 
-	public Statistics(String master, String datasets, String output_dir, String PLD) {
+	public Statistics(String master, String datasets, String output_dir, String[] PLDs) {
 		this.session = SparkSession.builder().appName("ABSTAT-statistics").master(master).getOrCreate();
 		this.session.sparkContext().setLogLevel("ERROR");
 		Statistics.datasets = datasets.split(";");
-		this.PLD = PLD;
+		this.PLDs = PLDs;
 		this.output_dir = output_dir;
 		this.json_builder = new BuildJSON(this.session, this.output_dir);
 	}
 	
 	public static void main(String[] args) throws Exception {
-		Statistics s = new Statistics(args[0], args[1], args[2], args[3]);
+		List<String> PLDs = new ArrayList<String>();
+		for (int i=3; i< args.length; i++)
+			PLDs.add(args[i]);
+		String[] PLDs_arr = (PLDs.toArray(new String[PLDs.size()]));
+		Statistics s = new Statistics(args[0], args[1], args[2], PLDs_arr);
 		
 		s.preProcessing(datasets);
 		s.countConceptsPLD();			
@@ -33,8 +40,8 @@ public class Statistics {
 		s.bNodesSubject(); 		
 		s.datatype(); 				
 		s.countLanguage(); 			
-		 s.outgoingLinks();				
-		 s.incomingLinks();				
+		s.outgoingLinks();				
+		s.incomingLinks();				
 		s.rdfsLabel();					
 		s.literalsWithType();			
 		s.literalsWithoutType(); 
@@ -73,14 +80,14 @@ public class Statistics {
 	public void countConceptsPLD(){		
 		String like = "";
 		String not_like = "";
-		String[] PLDs = PLD.split(" ");
+		//String[] PLDs = PLD.split(" ");
 		for (int i=0; i< PLDs.length; i++){
 			if(i==0){
 				not_like += "WHERE object NOT LIKE '%" +PLDs[i]+ "%' ";
 				like += "WHERE object LIKE '%" +PLDs[i]+ "%' ";
 			}
 			else {
-				not_like += "OR object  NOT LIKE  '%" +PLDs[i]+ "%' ";
+				not_like += "AND object  NOT LIKE  '%" +PLDs[i]+ "%' ";
 				like += "OR object LIKE  '%" +PLDs[i]+ "%' ";
 			}
 		}
@@ -103,14 +110,13 @@ public class Statistics {
 	public void countPropertiesPLD(){	
 		String like = "";
 		String not_like = "";
-		String[] PLDs = PLD.split(" ");
 		for (int i=0; i< PLDs.length; i++){
 			if(i==0){
 				not_like += "WHERE predicate NOT LIKE '%" +PLDs[i]+ "%' ";
 				like += "WHERE predicate LIKE '%" +PLDs[i]+ "%' ";
 			}
 			else {
-				not_like += "OR predicate  NOT LIKE  '%" +PLDs[i]+ "%' ";
+				not_like += "AND predicate  NOT LIKE  '%" +PLDs[i]+ "%' ";
 				like += "OR predicate LIKE  '%" +PLDs[i]+ "%' ";
 			}
 		}
@@ -174,14 +180,13 @@ public class Statistics {
 	public void outgoingLinks() {
 		String like = "";
 		String not_like = "";
-		String[] PLDs = PLD.split(" ");
 		for (int i=0; i< PLDs.length; i++){
 			if(i==0){
 				not_like += "WHERE object NOT LIKE '%" +PLDs[i]+ "%' ";
 				like += "WHERE subject LIKE '%" +PLDs[i]+ "%' ";
 			}
 			else {
-				not_like += "OR object  NOT LIKE  '%" +PLDs[i]+ "%' ";
+				not_like += "AND object  NOT LIKE  '%" +PLDs[i]+ "%' ";
 				like += "OR subject LIKE  '%" +PLDs[i]+ "%' ";
 			}
 		}
@@ -196,14 +201,13 @@ public class Statistics {
 	public void incomingLinks() {
 		String like = "";
 		String not_like = "";
-		String[] PLDs = PLD.split(" ");
 		for (int i=0; i< PLDs.length; i++){
 			if(i==0){
 				not_like += "WHERE subject NOT LIKE '%" +PLDs[i]+ "%' ";
 				like += "WHERE object LIKE '%" +PLDs[i]+ "%' ";
 			}
 			else {
-				not_like += "OR subject NOT LIKE  '%" +PLDs[i]+ "%' ";
+				not_like += "AND subject NOT LIKE  '%" +PLDs[i]+ "%' ";
 				like += "OR object LIKE '%" +PLDs[i]+ "%' ";
 			}
 		}
