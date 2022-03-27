@@ -9,7 +9,8 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import scala.collection.Seq;
-import org.apache.spark.sql.functions.regexp_replace;
+
+import static org.apache.spark.cd.functions.*;
 
 public class Statistics {
 	
@@ -18,20 +19,19 @@ public class Statistics {
 	private static String[] datasets;
 	private String PLD;
 	private String namespaces = "./namespaces.json";
-	static HashMap<String,ArrayList<String>> dir=new HashMap<String,ArrayList<String>>();
+	private BuildJSON json_builder;
 
 	public Statistics(String master, String datasets, String output_dir, String PLD) {
-		this.session = SparkSession.builder().appName("Java Spark SQL basic example").master(master).getOrCreate();
+		this.session = SparkSession.builder().appName("ABSTAT-statistics").master(master).getOrCreate();
 		this.session.sparkContext().setLogLevel("ERROR");
 		Statistics.datasets = datasets.split(";");
 		this.PLD = PLD;
 		this.output_dir = output_dir;
+		this.json_builder = new BuildJSON(this.session, this.output_dir);
 	}
 	
 	public static void main(String[] args) throws Exception {
 		Statistics s = new Statistics(args[0], args[1], args[2], args[3]);
-		Dataset<Row> prefixes = s.session.read().format("json").load(s.namespaces);
-		prefixes.createOrReplaceTempView("list");
 		
 		s.preProcessing(datasets);
 		s.countConceptsPLD();			
@@ -64,7 +64,7 @@ public class Statistics {
 		s.predicateObjectRatio(); 	
 		s.rarePredicate();	
 		s.countTypedSubject();
-		s.mergedAndDeleteFolder();
+		s.mergedAndWrite();
 	}
 	
 	public void preProcessing(String[] datasets) throws Exception {
@@ -73,7 +73,7 @@ public class Statistics {
 		Dataset<Row> data = session.createDataFrame(rdd, Triple.class);
 		data.createOrReplaceTempView("dataset");
 		//data.show(50, false);
-		new BuildJSON(session).fakeTable();
+		json_builder.fakeTable();
 	}
 	
 	//stat 4
@@ -101,10 +101,9 @@ public class Statistics {
 		session.sql("SELECT object FROM DistinctObject " + like).createOrReplaceTempView("withPLD");
 
 		session.sql("SELECT (SELECT COUNT(*) FROM withPLD) AS withPLD, (SELECT COUNT(*) FROM withoutPLD) AS withoutPLD")
-		.write().option("sep", ";").csv(output_dir + "/countConceptsPLD");
+		.write().option("header", true).option("sep", ";").csv(output_dir + "/countConceptsPLD");
 
-		dir.put("countConceptsPLD", new ArrayList<String>(Arrays.asList("countConceptsPLD", "withPLD", "withoutPLD")));
-		new BuildJSON(session).withAndWithout(output_dir, dir.get("countConceptsPLD"));
+		json_builder.withAndWithout(new String[]{"countConceptsPLD", "withPLD", "withoutPLD"});
 	}
 
 	//stat 7
@@ -117,30 +116,27 @@ public class Statistics {
 														+ "FROM DistinctPredicate "
 														+ "WHERE predicate NOT LIKE '%" +PLD+ "%') AS WithoutPLD "
 					+ "FROM DistinctPredicate "
-					+ "WHERE predicate LIKE '%" +PLD+ "%' ").write().option("sep", ";").csv(output_dir + "/countPropertiesPLD");
+					+ "WHERE predicate LIKE '%" +PLD+ "%' ").write().option("header", true).option("sep", ";").csv(output_dir + "/countPropertiesPLD");
 		
-		dir.put("countPropertiesPLD", new ArrayList<String>(Arrays.asList("countPropertiesPLD", "withPLD", "withoutPLD")));
-		new BuildJSON(session).withAndWithout(output_dir, dir.get("countPropertiesPLD"));
+		json_builder.withAndWithout(new String[]{"countPropertiesPLD", "withPLD", "withoutPLD"});
 	}
 	
 	//stat 10
 	public void bNodesObject() {	
 		session.sql("SELECT COUNT (object) AS nBNodesObject "
 					+ "FROM dataset "
-					+ "WHERE object LIKE '_:%' ").write().option("sep", ";").csv(output_dir + "/bNodesObject");
+					+ "WHERE object LIKE '_:%' ").write().option("header", true).option("header", true).option("sep", ";").csv(output_dir + "/bNodesObject");
 
-		dir.put("bNodesObject", new ArrayList<String>(Arrays.asList("bNodesObject", "long")));
-		new BuildJSON(session).oneElement(output_dir, dir.get("bNodesObject"));
+		json_builder.oneElement(new String[]{"bNodesObject", "nBNodesObject", "long"});
 	}
 	
 	//stat 11
 	public void bNodesSubject() {
 		session.sql("SELECT COUNT (subject) AS nBNodesSubject "
 					+ "FROM dataset "
-					+ "WHERE subject LIKE '_:%' ").write().option("sep", ";").csv(output_dir + "/bNodesSubject");
+					+ "WHERE subject LIKE '_:%' ").write().option("header", true).csv(output_dir + "/bNodesSubject");
 		
-		dir.put("bNodesSubject", new ArrayList<String>(Arrays.asList("bNodesSubject", "long")));
-		new BuildJSON(session).oneElement(output_dir, dir.get("bNodesSubject"));
+		json_builder.oneElement(new String[]{"bNodesSubject", "nBNodesSubject", "long"});
 	}
 	
 	//stat 12
@@ -149,10 +145,9 @@ public class Statistics {
 					+ "FROM dataset "
 					+ "WHERE datatype is not null "
 					+ "GROUP BY datatype "
-					+ "ORDER BY nDatatype DESC").write().option("sep", ";").csv(output_dir + "/datatypes");
-		
-		dir.put("datatypes", new ArrayList<String>(Arrays.asList("datatypes", "datatype", "nDatatype")));
-		new BuildJSON(session).number(output_dir, dir.get("datatypes"));
+					+ "ORDER BY nDatatype DESC").write().option("header", true).option("sep", ";").csv(output_dir + "/datatypes");
+
+		json_builder.number(new String[]{"datatypes", "datatype", "nDatatype"});
 	}
 
 	//stat 13
@@ -163,10 +158,9 @@ public class Statistics {
 							+ "WHERE object NOT LIKE 'http://dbpedia%' "
 							+ "AND object REGEXP '.*@[a-z][a-z]$' ) "
 					+ "GROUP BY language "
-					+ "ORDER BY nLanguage DESC").write().option("sep", ";").csv(output_dir + "/languages");
+					+ "ORDER BY nLanguage DESC").write().option("header", true).option("sep", ";").csv(output_dir + "/languages");
 		
-		dir.put("languages", new ArrayList<String>(Arrays.asList("languages", "language", "nLanguage")));
-		new BuildJSON(session).number(output_dir, dir.get("languages"));
+		json_builder.number(new String[]{"languages", "language", "nLanguage"});
 	} 
 	
 	//stat 14
@@ -175,10 +169,9 @@ public class Statistics {
 					+ "FROM dataset "
 					+ "WHERE subject LIKE '%" +PLD+ "%' "
 					+ "AND object NOT LIKE '%" +PLD+ "%' "
-					+ "AND type = 'object_relational' ").write().option("sep", ";").csv(output_dir + "/outgoingLinks");
+					+ "AND type = 'object_relational' ").write().option("header", true).option("sep", ";").csv(output_dir + "/outgoingLinks");
 		
-		dir.put("outgoingLinks", new ArrayList<String>(Arrays.asList("outgoingLinks", "long")));
-		new BuildJSON(session).oneElement(output_dir, dir.get("outgoingLinks"));
+		json_builder.oneElement(new String[]{"outgoingLinks", "nOutgoingLinks", "long"});
 	}
 	
 	//stat 15
@@ -187,20 +180,18 @@ public class Statistics {
 					+ "FROM dataset "
 					+ "WHERE object LIKE '%" +PLD+ "%' "
 					+ "AND subject NOT LIKE '%" +PLD+ "%' "
-					+ "AND type = 'object_relational' ").write().option("sep", ";").csv(output_dir + "/incomingLinks");
+					+ "AND type = 'object_relational' ").write().option("header", true).option("sep", ";").csv(output_dir + "/incomingLinks");
 		
-		dir.put("incomingLinks", new ArrayList<String>(Arrays.asList("incomingLinks", "long")));
-		new BuildJSON(session).oneElement(output_dir, dir.get("incomingLinks"));
+		json_builder.oneElement(new String[]{"incomingLinks", "nIncomingLinks", "long"});
 	}
 
 	//stat 16
 	public void rdfsLabel() {
 		session.sql("SELECT COUNT(subject) AS nRdfsLabel "
 					+ "FROM dataset "
-					+ "WHERE predicate = 'http://www.w3.org/2000/01/rdf-schema#label' ").write().option("sep", ";").csv(output_dir + "/rdfsLabel");
+					+ "WHERE predicate = 'http://www.w3.org/2000/01/rdf-schema#label' ").write().option("header", true).option("sep", ";").csv(output_dir + "/rdfsLabel");
 		
-		dir.put("rdfsLabel", new ArrayList<String>(Arrays.asList("rdfsLabel", "long")));
-		new BuildJSON(session).oneElement(output_dir, dir.get("rdfsLabel"));
+		json_builder.oneElement(new String[]{"rdfsLabel", "nRdfsLabel", "long"});
 	}
 	
 	//stat 17
@@ -208,10 +199,9 @@ public class Statistics {
 		session.sql("SELECT COUNT(type) AS nLiteralsWithType "
 					+ "FROM dataset "
 					+ "WHERE type = 'dt_relational' "
-					+ "AND datatype is not null ").write().option("sep", ";").csv(output_dir + "/literalsWithType");
+					+ "AND datatype is not null ").write().option("sep", ";").option("header", true).csv(output_dir + "/literalsWithType");
 		
-		dir.put("literalsWithType", new ArrayList<String>(Arrays.asList("literalsWithType", "long")));
-		new BuildJSON(session).oneElement(output_dir, dir.get("literalsWithType"));
+		json_builder.oneElement(new String[]{"literalsWithType", "nLiteralsWithType", "long"});
 	}
 	
 	//stat 18
@@ -219,10 +209,9 @@ public class Statistics {
 		session.sql("SELECT COUNT(type) AS nLiteralsWithoutType "
 					+ "FROM dataset "
 					+ "WHERE datatype is null "
-					+ "AND type = 'dt_relational' ").write().option("sep", ";").csv(output_dir + "/literalsWithoutType");
-		
-		dir.put("literalsWithoutType", new ArrayList<String>(Arrays.asList("literalsWithoutType", "long")));
-		new BuildJSON(session).oneElement(output_dir, dir.get("literalsWithoutType"));
+					+ "AND type = 'dt_relational' ").write().option("header", true).option("sep", ";").csv(output_dir + "/literalsWithoutType");
+					
+		json_builder.oneElement(new String[]{"literalsWithoutType", "nLiteralsWithoutType", "long"});
 	}
 
 	//stat 19
@@ -274,11 +263,9 @@ public class Statistics {
 		// count basic with updated counter
 		String[] colNames = {"count_temp"};
 		session.sql("SELECT *  from  count_basic LEFT JOIN count_temp ON vocabulary_basic=vocabulary_temp ").na().fill(0, colNames).createOrReplaceTempView("temp");
-		session.sql("SELECT vocabulary_basic as vocabulary, (count_basic + count_temp) AS count from temp").write().option("sep", ";").csv(output_dir + "/vocabularies");
+		session.sql("SELECT vocabulary_basic as vocabulary, (count_basic + count_temp) AS count from temp").write().option("header", true).option("sep", ";").csv(output_dir + "/vocabularies");
 
-		
-		dir.put("vocabularies", new ArrayList<String>(Arrays.asList("vocabularies", "namespace", "nPredicate")));
-		new BuildJSON(session).number(output_dir, dir.get("vocabularies"));
+		json_builder.number(new String[]{"vocabularies", "vocabulary", "count"});
 	}
 	
 	//stat 22
@@ -289,10 +276,9 @@ public class Statistics {
 					+ "FROM (SELECT COUNT(subject) AS number "
 							+ "FROM dataset "
 							+ "WHERE predicate = 'http://www.w3.org/2002/07/owl#sameAs' "
-							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "/sameAsLink");
+							+ "GROUP BY subject) ").write().option("header", true).option("sep", ";").csv(output_dir + "/sameAsLink");
 		
-		dir.put("sameAsLink", new ArrayList<String>(Arrays.asList("sameAsLink", "triple")));
-		new BuildJSON(session).minMaxAvgOther(output_dir, dir.get("sameAsLink"));
+		json_builder.minMaxAvgOther(new String[]{"sameAsLink", "triple"});
 	}
 	
 	//stat 23
@@ -301,10 +287,9 @@ public class Statistics {
 																+ "FROM dataset "
 																+ "WHERE predicate != 'http://www.w3.org/2002/07/owl#sameAs') AS withoutOwlSemeas "
 					+ "FROM dataset "
-					+ "WHERE predicate = 'http://www.w3.org/2002/07/owl#sameAs' ").write().option("sep", ";").csv(output_dir + "/owlSameas");
+					+ "WHERE predicate = 'http://www.w3.org/2002/07/owl#sameAs' ").write().option("header", true).option("sep", ";").csv(output_dir + "/owlSameas");
 		
-		dir.put("owlSameas", new ArrayList<String>(Arrays.asList("owlSameas", "withOwlSemeas", "withoutOwlSemeas")));
-		new BuildJSON(session).withAndWithout(output_dir, dir.get("owlSameas"));
+		json_builder.withAndWithout(new String[]{"owlSameas", "withOwlSemeas", "withoutOwlSemeas"});
 	}
 	
 	//stat 24
@@ -313,32 +298,29 @@ public class Statistics {
 					+ "FROM dataset "
 					+ "WHERE type = 'dt_relational' "
 					+ "AND datatype is null "
-					+ "OR datatype = 'http://www.w3.org/2001/XMLSchema#string' ").write().option("sep", ";").csv(output_dir + "/avgLengthLiterals");
+					+ "OR datatype = 'http://www.w3.org/2001/XMLSchema#string' ").write().option("header", true).option("sep", ";").csv(output_dir + "/avgLengthLiterals");
 		
-		dir.put("avgLengthLiterals", new ArrayList<String>(Arrays.asList("avgLengthLiterals", "double")));
-		new BuildJSON(session).oneElement(output_dir, dir.get("avgLengthLiterals"));
+		json_builder.oneElement(new String[]{"avgLengthLiterals", "AVGLengthLiterals", "double"});
 	}
 	
 	//stat 25
 	public void typedSubject() {
 		session.sql("SELECT COUNT (DISTINCT subject) AS nTypedSubject "
 					+ "FROM dataset "
-					+ "WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' ").write().option("sep", ";").csv(output_dir + "/typedSubject");
+					+ "WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' ").write().option("header", true).option("sep", ";").csv(output_dir + "/typedSubject");
 		
-		dir.put("typedSubject", new ArrayList<String>(Arrays.asList("typedSubject", "long")));
-		new BuildJSON(session).oneElement(output_dir, dir.get("typedSubject"));
+		json_builder.oneElement(new String[]{"typedSubject", "nTypedSubject",  "long"});
 	}
 	
 	//stat 26
 	public void untypedSubject() {
-		session.sql("SELECT COUNT (DISTINCT subject) AS nUntypedSubject "
-					+ "FROM dataset "
-					+ "WHERE subject NOT IN (SELECT subject "
-											+ "FROM dataset "
-											+ "WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type') ").write().option("sep", ";").csv(output_dir + "/untypedSubject");
-		
-		dir.put("untypedSubject", new ArrayList<String>(Arrays.asList("untypedSubject", "long")));
-		new BuildJSON(session).oneElement(output_dir, dir.get("untypedSubject"));
+		session.sql("select * FROM "
+			     + "(SELECT DISTINCT subject FROM dataset) "
+				 +	"MINUS "
+				 + "(SELECT DISTINCT subject FROM dataset WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type')").createOrReplaceTempView("untyped_subjects");
+
+		session.sql("SELECT COUNT(DISTINCT subject) AS nUntypedSubject FROM untyped_subjects").write().option("header", true).option("sep", ";").csv(output_dir + "/untypedSubject");
+		json_builder.oneElement(new String[]{"untypedSubject", "nUntypedSubject", "long"});
 	}
 	
 	//stat 29
@@ -348,10 +330,9 @@ public class Statistics {
 							+ "FROM dataset "
 							+ "WHERE type = 'dt_relational' "
 							+ "OR type = 'object_relational' "
-							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "/triplesEntity");
+							+ "GROUP BY subject) ").write().option("header", true).option("sep", ";").csv(output_dir + "/triplesEntity");
 		
-		dir.put("triplesEntity", new ArrayList<String>(Arrays.asList("triplesEntity")));
-		new BuildJSON(session).minMaxAvg(output_dir, dir.get("triplesEntity"));
+		json_builder.minMaxAvg(new String[]{"triplesEntity"});
 	}
 	
 	//stat 30
@@ -359,10 +340,9 @@ public class Statistics {
 		session.sql("SELECT MIN(nPredicate) AS min, AVG(nPredicate) AS avg, MAX(nPredicate) AS max, STDDEV(nPredicate) AS standardDeviation "
 					+ "FROM (SELECT COUNT (DISTINCT predicate) AS nPredicate "
 							+ "FROM dataset " 
-							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "/subjectPredicates");
+							+ "GROUP BY subject) ").write().option("header", true).option("sep", ";").csv(output_dir + "/subjectPredicates");
 		
-		dir.put("subjectPredicates", new ArrayList<String>(Arrays.asList("subjectPredicates", "standardDeviation")));
-		new BuildJSON(session).minMaxAvgOther(output_dir, dir.get("subjectPredicates"));
+		json_builder.minMaxAvgOther(new String[]{"subjectPredicates", "standardDeviation"});
 	}
 	
 	//stat 32
@@ -370,10 +350,9 @@ public class Statistics {
 		session.sql("SELECT MIN(nPredicate) AS min, AVG(nPredicate) AS avg, MAX(nPredicate) AS max "
 					+ "FROM (SELECT COUNT (DISTINCT predicate) AS nPredicate "
 							+ "FROM dataset " 
-							+ "GROUP BY subject, object) ").write().option("sep", ";").csv(output_dir + "/subjectObject");
+							+ "GROUP BY subject, object) ").write().option("header", true).option("sep", ";").csv(output_dir + "/subjectObject");
 		
-		dir.put("subjectObject", new ArrayList<String>(Arrays.asList("subjectObject")));
-		new BuildJSON(session).minMaxAvg(output_dir, dir.get("subjectObject"));
+		json_builder.minMaxAvg(new String[]{"subjectObject"});
 	}
 
 	//stat 33
@@ -382,10 +361,9 @@ public class Statistics {
 					+ "FROM (SELECT COUNT (object) AS number "
 							+ "FROM dataset "
 							+ "WHERE predicate != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "
-							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "/subjectCount");
+							+ "GROUP BY subject) ").write().option("header", true).option("sep", ";").csv(output_dir + "/subjectCount");
 		
-		dir.put("subjectCount", new ArrayList<String>(Arrays.asList("subjectCount")));
-		new BuildJSON(session).minMaxAvg(output_dir, dir.get("subjectCount"));
+		json_builder.minMaxAvg(new String[]{"subjectCount"});
 	}
 	
 	//stat 34
@@ -394,10 +372,9 @@ public class Statistics {
 					+ "FROM (SELECT COUNT (subject) AS number "
 							+ "FROM dataset "
 							+ "WHERE predicate != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "
-							+ "GROUP BY object) ").write().option("sep", ";").csv(output_dir + "/objectCount");
+							+ "GROUP BY object) ").write().option("header", true).option("sep", ";").csv(output_dir + "/objectCount");
 		
-		dir.put("objectCount", new ArrayList<String>(Arrays.asList("objectCount")));
-		new BuildJSON(session).minMaxAvg(output_dir, dir.get("objectCount"));
+		json_builder.minMaxAvg(new String[]{"objectCount"});
 	}
 	
 	//stat 35
@@ -405,10 +382,9 @@ public class Statistics {
 		session.sql("SELECT predicate, COUNT (predicate) AS nTriples "
 					+ "FROM dataset " 
 					+ "GROUP BY predicate "
-					+ "ORDER BY nTriples DESC").write().option("sep", ";").csv(output_dir + "/predicateTriples");
+					+ "ORDER BY nTriples DESC").write().option("header", true).option("header", true).option("sep", ";").csv(output_dir + "/predicateTriples");
 		
-		dir.put("predicateTriples", new ArrayList<String>(Arrays.asList("predicateTriples", "predicate", "nTriples")));
-		new BuildJSON(session).number(output_dir, dir.get("predicateTriples"));
+		json_builder.number(new String[]{"predicateTriples", "predicate", "nTriples"});
 	}
 	
 	//stat 36
@@ -416,10 +392,9 @@ public class Statistics {
 		session.sql("SELECT predicate, COUNT (DISTINCT subject) AS nSubjects "
 					+ "FROM dataset " 
 					+ "GROUP BY predicate "
-					+ "ORDER BY nSubjects DESC ").write().option("sep", ";").csv(output_dir + "/predicateSubjects");
+					+ "ORDER BY nSubjects DESC ").write().option("header", true).option("sep", ";").csv(output_dir + "/predicateSubjects");
 		
-		dir.put("predicateSubjects", new ArrayList<String>(Arrays.asList("predicateSubjects", "predicate", "nSubjects")));
-		new BuildJSON(session).number(output_dir, dir.get("predicateSubjects"));
+		json_builder.number(new String[]{"predicateSubjects", "predicate", "nSubjects"});
 	}
 
 	//stat 37
@@ -428,10 +403,9 @@ public class Statistics {
 					+ "FROM dataset "
 					+ "WHERE predicate != 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "     
 					+ "GROUP BY predicate "
-					+ "ORDER BY nObjects DESC ").write().option("sep", ";").csv(output_dir + "/predicateObjects");
+					+ "ORDER BY nObjects DESC ").write().option("header", true).option("sep", ";").csv(output_dir + "/predicateObjects");
 		
-		dir.put("predicateObjects", new ArrayList<String>(Arrays.asList("predicateObjects", "predicate", "nObjects")));
-		new BuildJSON(session).number(output_dir, dir.get("predicateObjects"));
+		json_builder.number(new String[]{"predicateObjects", "predicate", "nObjects"});
 	}
 	
 	//stat 38
@@ -458,10 +432,9 @@ public class Statistics {
 		session.sql("SELECT MIN(number) AS min, AVG(number) AS avg, MAX(number) AS max "
 		 			+ "FROM(SELECT subject, nSubject/nTot AS number "
 		 					+ "FROM Subject, Tot "
-		 					+ "WHERE subject = value) ").write().option("sep", ";").csv(output_dir + "/subjectObjectRatio");
+		 					+ "WHERE subject = value) ").write().option("header", true).option("sep", ";").csv(output_dir + "/subjectObjectRatio");
 		
-		dir.put("subjectObjectRatio", new ArrayList<String>(Arrays.asList("subjectObjectRatio")));
-		new BuildJSON(session).minMaxAvg(output_dir, dir.get("subjectObjectRatio"));
+		json_builder.minMaxAvg(new String[]{"subjectObjectRatio"});
 	}
 		
 	//stat 39
@@ -486,10 +459,9 @@ public class Statistics {
 		session.sql("SELECT MIN(number) AS min, AVG(number) AS avg, MAX(number) AS max "
 					+ "FROM(SELECT subject, nSubject/nTot AS number "
 							+ "FROM Subject, Tot "
-							+ "WHERE subject = value) ").write().option("sep", ";").csv(output_dir + "/subjectPredicateRatio");
-		
-		dir.put("subjectPredicateRatio", new ArrayList<String>(Arrays.asList("subjectPredicateRatio")));
-		new BuildJSON(session).minMaxAvg(output_dir, dir.get("subjectPredicateRatio"));
+							+ "WHERE subject = value) ").write().option("header", true).option("sep", ";").csv(output_dir + "/subjectPredicateRatio");
+
+		json_builder.minMaxAvg(new String[]{"subjectPredicateRatio"});
 	}
 		
 	//stat 40
@@ -514,10 +486,9 @@ public class Statistics {
 		session.sql("SELECT MIN(number) AS min, AVG(number) AS avg, MAX(number) AS max "
 					+ "FROM(SELECT predicate, nPredicate/nTot AS number "
 						+ "FROM Predicate, Tot "
-						+ "WHERE predicate = value) ").write().option("sep", ";").csv(output_dir + "/predicateObjectRatio"); 
+						+ "WHERE predicate = value) ").write().option("header", true).option("sep", ";").csv(output_dir + "/predicateObjectRatio"); 
 		
-		dir.put("predicateObjectRatio", new ArrayList<String>(Arrays.asList("predicateObjectRatio")));
-		new BuildJSON(session).minMaxAvg(output_dir, dir.get("predicateObjectRatio"));
+		json_builder.minMaxAvg(new String[]{"predicateObjectRatio"});
 	}
 
 	//stat 43
@@ -526,10 +497,9 @@ public class Statistics {
 					+ "FROM (SELECT predicate "
 							+ "FROM dataset "
 							+ "GROUP BY predicate "
-							+ "HAVING COUNT(predicate) = 1)" ).write().option("sep", ";").csv(output_dir + "/rarePredicate");
-		
-		dir.put("rarePredicate", new ArrayList<String>(Arrays.asList("rarePredicate", "long")));
-		new BuildJSON(session).oneElement(output_dir, dir.get("rarePredicate"));
+							+ "HAVING COUNT(predicate) = 1)" ).write().option("header", true).option("sep", ";").csv(output_dir + "/rarePredicate");
+
+		json_builder.oneElement(new String[]{"rarePredicate", "nRarePradicate", "long"});
 	}
 
 	//stat 46
@@ -538,14 +508,13 @@ public class Statistics {
 					+ "FROM (SELECT COUNT(subject) as nSubject "
 							+ "FROM dataset "
 							+ "WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "
-							+ "GROUP BY subject) ").write().option("sep", ";").csv(output_dir + "/countTypedSubject");
+							+ "GROUP BY subject) ").write().option("header", true).option("sep", ";").csv(output_dir + "/countTypedSubject");
 		
-		dir.put("countTypedSubject", new ArrayList<String>(Arrays.asList("countTypedSubject")));
-		new BuildJSON(session).minMaxAvg(output_dir, dir.get("countTypedSubject"));
+		json_builder.minMaxAvg(new String[]{"countTypedSubject"});
 	}
 	
 	
-	public void mergedAndDeleteFolder() throws IOException {
-		new BuildJSON(session).mergedAndDeleteFolder(output_dir, dir.keySet());
+	public void mergedAndWrite() throws IOException {
+		json_builder.mergedAndWrite();
 	}
 }
