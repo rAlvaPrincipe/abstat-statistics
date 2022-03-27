@@ -1,16 +1,10 @@
 package application;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
-import scala.collection.Seq;
-
-import static org.apache.spark.cd.functions.*;
 
 public class Statistics {
 	
@@ -18,7 +12,6 @@ public class Statistics {
 	private String output_dir;
 	private static String[] datasets;
 	private String PLD;
-	private String namespaces = "./namespaces.json";
 	private BuildJSON json_builder;
 
 	public Statistics(String master, String datasets, String output_dir, String PLD) {
@@ -107,16 +100,30 @@ public class Statistics {
 	}
 
 	//stat 7
-	public void countPropertiesPLD(){		
+	public void countPropertiesPLD(){	
+		String like = "";
+		String not_like = "";
+		String[] PLDs = PLD.split(" ");
+		for (int i=0; i< PLDs.length; i++){
+			if(i==0){
+				not_like += "WHERE predicate NOT LIKE '%" +PLDs[i]+ "%' ";
+				like += "WHERE predicate LIKE '%" +PLDs[i]+ "%' ";
+			}
+			else {
+				not_like += "OR predicate  NOT LIKE  '%" +PLDs[i]+ "%' ";
+				like += "OR predicate LIKE  '%" +PLDs[i]+ "%' ";
+			}
+		}
+		
 		session.sql("SELECT predicate "
 					+ "FROM dataset "
 					+ "GROUP BY predicate ").createOrReplaceTempView("DistinctPredicate");
-		
-		session.sql("SELECT COUNT(predicate) AS WithPLD, (SELECT COUNT(predicate) "
-														+ "FROM DistinctPredicate "
-														+ "WHERE predicate NOT LIKE '%" +PLD+ "%') AS WithoutPLD "
-					+ "FROM DistinctPredicate "
-					+ "WHERE predicate LIKE '%" +PLD+ "%' ").write().option("header", true).option("sep", ";").csv(output_dir + "/countPropertiesPLD");
+	
+		session.sql("SELECT predicate FROM DistinctPredicate " + not_like).createOrReplaceTempView("withoutPLD");
+		session.sql("SELECT predicate FROM DistinctPredicate " + like).createOrReplaceTempView("withPLD");
+
+		session.sql("SELECT (SELECT COUNT(*) FROM withPLD) AS withPLD, (SELECT COUNT(*) FROM withoutPLD) AS withoutPLD")
+		.write().option("header", true).option("sep", ";").csv(output_dir + "/countPropertiesPLD");
 		
 		json_builder.withAndWithout(new String[]{"countPropertiesPLD", "withPLD", "withoutPLD"});
 	}
