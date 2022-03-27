@@ -77,15 +77,14 @@ public class Statistics {
 	}
 	
 	//stat 4
-	public void countConceptsPLD(){	
-		
+	public void countConceptsPLD(){		
 		String like = "";
 		String not_like = "";
 		String[] PLDs = PLD.split(" ");
 		for (int i=0; i< PLDs.length; i++){
 			if(i==0){
 				not_like += "WHERE object NOT LIKE '%" +PLDs[i]+ "%' ";
-				like += "WHERE object NOT LIKE '%" +PLDs[i]+ "%' ";
+				like += "WHERE object LIKE '%" +PLDs[i]+ "%' ";
 			}
 			else {
 				not_like += "OR object  NOT LIKE  '%" +PLDs[i]+ "%' ";
@@ -97,17 +96,17 @@ public class Statistics {
 					+ "FROM dataset "
 					+ "WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "
 					+ "GROUP BY object ").createOrReplaceTempView("DistinctObject");
-			
-		session.sql("SELECT COUNT(object) AS withPLD, (SELECT COUNT(object) "
-													+ "FROM DistinctObject "
-													+ not_like + ") AS withoutPLD "
-					+ "FROM DistinctObject "
-					+ like).write().option("sep", ";").csv(output_dir + "/countConceptsPLD");
 		
+		session.sql("SELECT object FROM DistinctObject " + not_like).createOrReplaceTempView("withoutPLD");
+		session.sql("SELECT object FROM DistinctObject " + like).createOrReplaceTempView("withPLD");
+
+		session.sql("SELECT (SELECT COUNT(*) FROM withPLD) AS withPLD, (SELECT COUNT(*) FROM withoutPLD) AS withoutPLD")
+		.write().option("sep", ";").csv(output_dir + "/countConceptsPLD");
+
 		dir.put("countConceptsPLD", new ArrayList<String>(Arrays.asList("countConceptsPLD", "withPLD", "withoutPLD")));
 		new BuildJSON(session).withAndWithout(output_dir, dir.get("countConceptsPLD"));
 	}
-	
+
 	//stat 7
 	public void countPropertiesPLD(){		
 		session.sql("SELECT predicate "
