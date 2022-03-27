@@ -33,8 +33,8 @@ public class Statistics {
 		s.bNodesSubject(); 		
 		s.datatype(); 				
 		s.countLanguage(); 			
-		s.outgoingLinks();				
-		s.incomingLinks();				
+		 s.outgoingLinks();				
+		 s.incomingLinks();				
 		s.rdfsLabel();					
 		s.literalsWithType();			
 		s.literalsWithoutType(); 
@@ -172,23 +172,45 @@ public class Statistics {
 	
 	//stat 14
 	public void outgoingLinks() {
-		session.sql("SELECT COUNT (predicate) AS nOutgoingLinks "
-					+ "FROM dataset "
-					+ "WHERE subject LIKE '%" +PLD+ "%' "
-					+ "AND object NOT LIKE '%" +PLD+ "%' "
-					+ "AND type = 'object_relational' ").write().option("header", true).option("sep", ";").csv(output_dir + "/outgoingLinks");
-		
+		String like = "";
+		String not_like = "";
+		String[] PLDs = PLD.split(" ");
+		for (int i=0; i< PLDs.length; i++){
+			if(i==0){
+				not_like += "WHERE object NOT LIKE '%" +PLDs[i]+ "%' ";
+				like += "WHERE subject LIKE '%" +PLDs[i]+ "%' ";
+			}
+			else {
+				not_like += "OR object  NOT LIKE  '%" +PLDs[i]+ "%' ";
+				like += "OR subject LIKE  '%" +PLDs[i]+ "%' ";
+			}
+		}
+		session.sql("SELECT * FROM dataset WHERE type = 'object_relational'").createOrReplaceTempView("temp");
+		session.sql("SELECT * FROM temp " + like).createOrReplaceTempView("temp");
+		session.sql("SELECT * FROM temp " + not_like).createOrReplaceTempView("temp");
+		session.sql("SELECT COUNT(*) AS nOutgoingLinks FROM temp").write().option("header", true).option("sep", ";").csv(output_dir + "/outgoingLinks");
 		json_builder.oneElement(new String[]{"outgoingLinks", "nOutgoingLinks", "long"});
 	}
 	
 	//stat 15
 	public void incomingLinks() {
-		session.sql("SELECT COUNT (predicate) AS nIncomingLinks "
-					+ "FROM dataset "
-					+ "WHERE object LIKE '%" +PLD+ "%' "
-					+ "AND subject NOT LIKE '%" +PLD+ "%' "
-					+ "AND type = 'object_relational' ").write().option("header", true).option("sep", ";").csv(output_dir + "/incomingLinks");
-		
+		String like = "";
+		String not_like = "";
+		String[] PLDs = PLD.split(" ");
+		for (int i=0; i< PLDs.length; i++){
+			if(i==0){
+				not_like += "WHERE subject NOT LIKE '%" +PLDs[i]+ "%' ";
+				like += "WHERE object LIKE '%" +PLDs[i]+ "%' ";
+			}
+			else {
+				not_like += "OR subject NOT LIKE  '%" +PLDs[i]+ "%' ";
+				like += "OR object LIKE '%" +PLDs[i]+ "%' ";
+			}
+		}
+		session.sql("SELECT * FROM dataset WHERE type = 'object_relational'").createOrReplaceTempView("temp");
+		session.sql("SELECT * FROM temp " + like).createOrReplaceTempView("temp");
+		session.sql("SELECT * FROM temp " + not_like).createOrReplaceTempView("temp");
+		session.sql("SELECT COUNT(*) AS nIncomingLinks FROM temp").write().option("header", true).option("sep", ";").csv(output_dir + "/incomingLinks");
 		json_builder.oneElement(new String[]{"incomingLinks", "nIncomingLinks", "long"});
 	}
 
