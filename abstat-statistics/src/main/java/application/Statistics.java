@@ -36,6 +36,7 @@ public class Statistics {
 		s.preProcessing(datasets);
 		s.countConceptsPLD();			
 		s.countPropertiesPLD();
+		s.numEntities();
 		s.bNodesObject();				
 		s.bNodesSubject(); 		
 		s.datatype(); 				
@@ -46,11 +47,11 @@ public class Statistics {
 		s.literalsWithType();			
 		s.literalsWithoutType(); 
 		s.vocabularies(); 	
-		s.sameAsLink();					
+		s.sameAsLink();
 		s.owlSameas();					
 		s.lengthStringAndUntypedLiterals();			 
 		s.typedSubject();				
-		s.untypedSubject(); 		
+	 	s.untypedSubject(); 		
 		s.triplesEntity();		
 		s.subjectPredicates(); 			
 		s.subjectObject();				
@@ -134,11 +135,22 @@ public class Statistics {
 		json_builder.withAndWithout(new String[]{"countPropertiesPLD", "withPLD", "withoutPLD"});
 	}
 	
+    //stat 9
+	public void numEntities() {
+		session.sql("SELECT DISTINCT subject AS entity " 
+		             + "FROM dataset "
+					 + "WHERE subject NOT LIKE '_:%'").createOrReplaceTempView("entities");
+		
+		session.sql("SELECT COUNT(entity) AS numEntities FROM entities").write().option("header", true).option("sep", ";").csv(output_dir + "/numEntities");
+
+		json_builder.oneElement(new String[]{"numEntities", "numEntities", "long"});
+	}
+
 	//stat 10
 	public void bNodesObject() {	
 		session.sql("SELECT COUNT (object) AS nBNodesObject "
 					+ "FROM dataset "
-					+ "WHERE object LIKE '_:%' ").write().option("header", true).option("header", true).option("sep", ";").csv(output_dir + "/bNodesObject");
+					+ "WHERE object LIKE '_:%' ").write().option("header", true).option("sep", ";").csv(output_dir + "/bNodesObject");
 
 		json_builder.oneElement(new String[]{"bNodesObject", "nBNodesObject", "long"});
 	}
@@ -220,13 +232,14 @@ public class Statistics {
 
 	//stat 16
 	public void rdfsLabel() {
-		session.sql("SELECT COUNT(subject) AS nRdfsLabel "
+		session.sql("SELECT COUNT(DISTINCT subject) AS nRdfsLabel "
 					+ "FROM dataset "
-					+ "WHERE predicate = 'http://www.w3.org/2000/01/rdf-schema#label' ").write().option("header", true).option("sep", ";").csv(output_dir + "/rdfsLabel");
+					+ "WHERE predicate = 'http://www.w3.org/2000/01/rdf-schema#label' "
+					+ "AND subject NOT LIKE '_:%' ").write().option("header", true).option("sep", ";").csv(output_dir + "/rdfsLabel");
 		
 		json_builder.oneElement(new String[]{"rdfsLabel", "nRdfsLabel", "long"});
 	}
-	
+
 	//stat 17
 	public void literalsWithType() {	
 		session.sql("SELECT COUNT(type) AS nLiteralsWithType "
@@ -303,27 +316,38 @@ public class Statistics {
 	
 	//stat 22
 	public void sameAsLink() {
-		session.sql("SELECT MIN(number) AS min, AVG(number) AS avg, MAX(number) AS max, (SELECT COUNT(subject) "
+		session.sql("SELECT MIN(number) AS min, AVG(number) AS avg, MAX(number) AS max, (SELECT COUNT(*) "
 																						+ "FROM dataset "
-																						+ "WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' ) AS triple "
+																						+ "WHERE predicate = 'http://www.w3.org/2002/07/owl#sameAs' ) AS triple "
 					+ "FROM (SELECT COUNT(subject) AS number "
 							+ "FROM dataset "
 							+ "WHERE predicate = 'http://www.w3.org/2002/07/owl#sameAs' "
+							+ "AND subject NOT LIKE '_:%' "
 							+ "GROUP BY subject) ").write().option("header", true).option("sep", ";").csv(output_dir + "/sameAsLink");
-		
+
 		json_builder.minMaxAvgOther(new String[]{"sameAsLink", "triple"});
 	}
-	
+
 	//stat 23
 	public void owlSameas() {
-		session.sql("SELECT COUNT(subject) AS withOwlSemeas, (SELECT COUNT(subject) "
-																+ "FROM dataset "
-																+ "WHERE predicate != 'http://www.w3.org/2002/07/owl#sameAs') AS withoutOwlSemeas "
-					+ "FROM dataset "
-					+ "WHERE predicate = 'http://www.w3.org/2002/07/owl#sameAs' ").write().option("header", true).option("sep", ";").csv(output_dir + "/owlSameas");
+		session.sql("SELECT DISTINCT subject as entity "
+			      + "FROM dataset "
+				  + "WHERE predicate == 'http://www.w3.org/2002/07/owl#sameAs' "
+				  + "AND subject NOT LIKE '_:%'").createOrReplaceTempView("entities_sameas");
+
+
+		session.sql("select * FROM "
+				  + "(SELECT entity FROM entities) "
+				  +	"MINUS "
+				  + "(SELECT entity FROM entities_sameas)").createOrReplaceTempView("entities_no_sameas");
 		
+
+		session.sql("SELECT (SELECT count(*) FROM entities_sameas) AS withOwlSemeas, "
+		                            + "(SELECT count(*) FROM entities_no_sameas) AS withoutOwlSemeas")
+									.write().option("header", true).option("sep", ";").csv(output_dir + "/owlSameas");
 		json_builder.withAndWithout(new String[]{"owlSameas", "withOwlSemeas", "withoutOwlSemeas"});
 	}
+
 	
 	//stat 24
 	public void lengthStringAndUntypedLiterals() {
@@ -340,7 +364,8 @@ public class Statistics {
 	public void typedSubject() {
 		session.sql("SELECT COUNT (DISTINCT subject) AS nTypedSubject "
 					+ "FROM dataset "
-					+ "WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' ").write().option("header", true).option("sep", ";").csv(output_dir + "/typedSubject");
+					+ "WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' "
+					+ "AND subject NOT LIKE '_:%'").write().option("header", true).option("sep", ";").csv(output_dir + "/typedSubject");
 		
 		json_builder.oneElement(new String[]{"typedSubject", "nTypedSubject",  "long"});
 	}
@@ -348,9 +373,9 @@ public class Statistics {
 	//stat 26
 	public void untypedSubject() {
 		session.sql("select * FROM "
-			     + "(SELECT DISTINCT subject FROM dataset) "
+			     + "(SELECT entity AS subject FROM entities) "
 				 +	"MINUS "
-				 + "(SELECT DISTINCT subject FROM dataset WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type')").createOrReplaceTempView("untyped_subjects");
+				 + "(SELECT DISTINCT subject FROM dataset WHERE predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' AND subject NOT LIKE '_:%')").createOrReplaceTempView("untyped_subjects");
 
 		session.sql("SELECT COUNT(DISTINCT subject) AS nUntypedSubject FROM untyped_subjects").write().option("header", true).option("sep", ";").csv(output_dir + "/untypedSubject");
 		json_builder.oneElement(new String[]{"untypedSubject", "nUntypedSubject", "long"});
@@ -361,8 +386,9 @@ public class Statistics {
 		session.sql("SELECT MIN(nTriples) AS min, AVG(nTriples) AS avg, MAX(nTriples) AS max "
 					+ "FROM (SELECT COUNT (subject) AS nTriples "
 							+ "FROM dataset "
-							+ "WHERE type = 'dt_relational' "
-							+ "OR type = 'object_relational' "
+							+ "WHERE (type = 'dt_relational' "
+							+ "OR type = 'object_relational') "
+							+ "AND subject NOT LIKE '_:%'"
 							+ "GROUP BY subject) ").write().option("header", true).option("sep", ";").csv(output_dir + "/triplesEntity");
 		
 		json_builder.minMaxAvg(new String[]{"triplesEntity"});
@@ -441,7 +467,7 @@ public class Statistics {
 		json_builder.number(new String[]{"predicateObjects", "predicate", "nObjects"});
 	}
 	
-	//stat 38
+	//stat 38 - TODO, aggiornare seconda la definizione di entità: entità al soggetto escludendo blank nodes
 	public void subjectObjectRatio() {
 		session.sql("SELECT subject, COUNT(subject) AS nSubject "
 					+ "FROM dataset "
@@ -524,7 +550,7 @@ public class Statistics {
 		json_builder.minMaxAvg(new String[]{"predicateObjectRatio"});
 	}
 
-	//stat 43
+	//stat 43 TODO, aggiornare seconda la definizione di entità: entità al soggetto escludendo blank nodes
 	public void rarePredicate() {
 		session.sql("SELECT COUNT(predicate) AS nRarePradicate "
 					+ "FROM (SELECT predicate "
@@ -535,7 +561,7 @@ public class Statistics {
 		json_builder.oneElement(new String[]{"rarePredicate", "nRarePradicate", "long"});
 	}
 
-	//stat 46
+	//stat 46 TODO, aggiornare seconda la definizione di entità: entità al soggetto escludendo blank nodes
 	public void countTypedSubject() {
 		session.sql("SELECT MIN(nSubject) AS min, AVG(nSubject) AS avg, MAX(nSubject) AS max "
 					+ "FROM (SELECT COUNT(subject) as nSubject "
