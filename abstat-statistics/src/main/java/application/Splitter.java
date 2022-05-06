@@ -1,7 +1,5 @@
 package application;
-
 import java.io.Serializable;
-
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 
@@ -24,6 +22,39 @@ public class Splitter implements Serializable{
 		try {
 			String s, p, o, dt;
 	
+			// Blank nodes management
+			if (line.startsWith("_:") && line.split("> _:").length==2) {  // bnode al soggetto e oggetto
+				String[] temp = line.split(" <http");
+				s = temp[0] + "|";
+				String[] temp2 = temp[1].split(" _:");
+				p = "http" + temp2[0].substring(0, temp2[0].length()-1) +"|";
+				o = "_:" + temp2[1].substring(0, temp2[1].length()-2) + "|";
+				return new Triple("bnode_triple", s, p, o);
+			}
+			else if (line.startsWith("_:")){              // bnode solo al soggetto e all'oggetto  uri o literal
+				String[] temp = line.split(" <http");
+				s = temp[0];
+				if (temp.length == 3){                    // l'oggetto è un uri
+					p = "http" + temp[1].substring(0,temp[1].length()-1);
+					o = "http" + temp[2].substring(0,temp[2].length()-3);
+				}
+				else {
+					String[] temp2 =temp[1].split("> ");  // l'oggetto è un literal
+					p = temp2[0];
+					o = temp2[1];
+				}
+				return new Triple("bnode_triple", s, p, o);
+			}
+			else if (line.split("> _:").length==2){       // bnode solo all'oggetto
+				String[] temp = line.split(" _:");
+				o = temp[1].substring(0,temp[1].length()-3);
+				String[] temp2 = temp[0].split("> <");
+				s = temp2[0].substring(1);
+				p = temp2[1].substring(0, temp2[1].length()-1 );
+				return new Triple("bnode_triple", s, p, o);
+			}
+			
+			// typing/relational assertions management
 			String[] splitted = line.split("> <http");
 			s = splitted[0].substring(1);
 			if (s.contains("<") || s.contains(">") || s.contains("\""))
