@@ -150,7 +150,8 @@ public class Statistics {
 	public void bNodesObject() {	
 		session.sql("SELECT COUNT (object) AS nBNodesObject "
 					+ "FROM dataset "
-					+ "WHERE object LIKE '_:%' ").write().option("header", true).option("sep", ";").csv(output_dir + "/bNodesObject");
+					+ "WHERE type = 'bnode_triple' "
+					+ "AND object LIKE '_:%' ").write().option("header", true).option("sep", ";").csv(output_dir + "/bNodesObject");
 
 		json_builder.oneElement(new String[]{"bNodesObject", "nBNodesObject", "long"});
 	}
@@ -159,7 +160,8 @@ public class Statistics {
 	public void bNodesSubject() {
 		session.sql("SELECT COUNT (subject) AS nBNodesSubject "
 					+ "FROM dataset "
-					+ "WHERE subject LIKE '_:%' ").write().option("header", true).csv(output_dir + "/bNodesSubject");
+					+ "WHERE type = 'bnode_triple' "
+					+ "AND subject LIKE '_:%' ").write().option("header", true).csv(output_dir + "/bNodesSubject");
 		
 		json_builder.oneElement(new String[]{"bNodesSubject", "nBNodesSubject", "long"});
 	}
