@@ -65,6 +65,10 @@ public class Statistics {
 		s.predicateObjectRatio(); 	
 		s.rarePredicate();	
 		s.countTypedSubject();
+		s.countTypingAssertions();
+		s.countObjectRelationalAssertions();
+		s.countDatatypeRelationalAssertions();
+		s.countBlankNodesAssertions();
 		s.mergedAndWrite();
 	}
 	
@@ -574,8 +578,52 @@ public class Statistics {
 		json_builder.minMaxAvg(new String[]{"countTypedSubject"});
 	}
 	
+
+	//stat 48
+	public void countTypingAssertions() {
+		session.sql("SELECT count(*) AS nTypingAssertions " + 
+					"FROM dataset "  + 
+					"WHERE type = 'typing'"
+				   ).write().option("header", true).option("sep", ";").csv(output_dir + "/countTypingAssertions");	
+		
+		json_builder.oneElement(new String[]{"countTypingAssertions", "nTypingAssertions", "long"});
+	}
+
+	//stat 49
+	public void countDatatypeRelationalAssertions() {
+		/* isolate datatype relation asserts */
+		session.sql("SELECT  count(*) AS nDatatypeRelationalAssertions " +                     
+					"FROM dataset "  + 
+					"WHERE type = 'dt_relational'" 
+				   ).write().option("header", true).option("sep", ";").csv(output_dir + "/countDatatypeRelationalAssertions");
+
+		json_builder.oneElement(new String[]{"countDatatypeRelationalAssertions", "nDatatypeRelationalAssertions", "long"});
+	}
+	 
+	//stat 50
+	public void countObjectRelationalAssertions() {
+		/* isolate object relation asserts */
+		session.sql("SELECT count(*) AS nObjectRelationalAssertions " + 
+					"FROM dataset "  + 
+					"WHERE type = 'object_relational'" 
+				   ).write().option("header", true).option("sep", ";").csv(output_dir + "/countObjectRelationalAssertions");
+	
+		json_builder.oneElement(new String[]{"countObjectRelationalAssertions", "nObjectRelationalAssertions", "long"});
+	}
+
+	//stat 51
+	public void countBlankNodesAssertions() {
+		/* isolate datatype relation asserts */
+		session.sql("SELECT  count(*) AS nBlankNodesAssertions " +                     
+					"FROM dataset "  + 
+					"WHERE type = 'bnode_triple'" 
+				   ).write().option("header", true).option("sep", ";").csv(output_dir + "/countBlankNodesAssertions");
+
+		json_builder.oneElement(new String[]{"countBlankNodesAssertions", "nBlankNodesAssertions", "long"});
+	}
 	
 	public void mergedAndWrite() throws IOException {
 		json_builder.mergedAndWrite();
 	}
 }
+
